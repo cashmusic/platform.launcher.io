@@ -1,0 +1,12 @@
+{
+	"name":"Twitter",
+	"description":"The Twitter connection is for an app that you've created on Twitter.",
+	"type":"com.twitter",
+	"scope":[""],
+	"compatibility":["single"],
+	"dataTypes": 
+		{
+			"key":"string",
+			"secret":"string"
+		}
+}

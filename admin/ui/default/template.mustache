@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>CASH Music: Admin</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+	<link rel="icon" type="image/png" href="http://cashmusic.org/images/icons/cash.png" />
+	<link href="{{www_path}}/ui/default/assets/css/admin.css" rel="stylesheet" type="text/css" />
+	<link href="{{www_path}}/ui/default/assets/css/diy-ui/jquery-ui-1.8.23.custom.css" rel="stylesheet" type="text/css" />
+
+	<script type="text/javascript">
+		var cashAdminPath = "{{www_path}}";
+		var currentSection = "{{section_name}}";
+		document.write('<style type="text/css">#pagetips {display:none;}.nojs {display:none;}.onlyjs {display:inline;}</style>');
+	</script>
+
+	<script src="{{www_path}}/ui/default/assets/scripts/modernizr-2.6.1.custom.min.js" type="text/javascript"></script>
+	<script src="{{www_path}}/ui/default/assets/scripts/jquery-1.8.2.min.js" type="text/javascript"></script>
+	<script src="{{www_path}}/ui/default/assets/scripts/jquery-ui-1.9.0.custom.min.js" type="text/javascript"></script>
+	<script src="{{www_path}}/ui/default/assets/scripts/jquery.iframe-transport.js" type="text/javascript"></script>
+	<script src="{{www_path}}/ui/default/assets/scripts/jquery.fileupload.js" type="text/javascript"></script>
+	<script src="{{www_path}}/ui/default/assets/scripts/jquery.admin.js" type="text/javascript"></script>
+</head>
+<body>
+
+<div id="wrap">
+	<div id="mainspc" class="{{specialcolor}}">
+		<div id="chromespc">
+			<div id="navmenumask">.</div>
+			<div id="navmenu">
+				<div id="assetstab" class="navitem bgcolor1{{#ui_current_assets}} currentnav{{/ui_current_assets}}">
+					<h2><a href="{{www_path}}/assets/" class="navitemlink">Assets</a></h2>
+				</div>
+				<div id="peopletab" class="navitem bgcolor2{{#ui_current_people}} currentnav{{/ui_current_people}}">
+					<h2><a href="{{www_path}}/people/" class="navitemlink">People</a></h2>
+				</div>
+				<div id="commercetab" class="navitem bgcolor3{{#ui_current_commerce}} currentnav{{/ui_current_commerce}}">
+					<h2><a href="{{www_path}}/commerce/" class="navitemlink">Commerce</a></h2>
+				</div>
+				<div id="calendartab" class="navitem bgcolor4{{#ui_current_calendar}} currentnav{{/ui_current_calendar}}">
+					<h2><a href="{{www_path}}/calendar/" class="navitemlink">Calendar</a></h2>
+				</div>
+				<div id="elementstab" class="navitem bgcolor5{{#ui_current_elements}} currentnav{{/ui_current_elements}}">
+					<h2><a href="{{www_path}}/elements/" class="navitemlink">Elements</a></h2>
+				</div>
+			</div>
+		</div>
+
+		<div id="pagecontent">
+			<div id="pagemenu">
+			{{#section_menu}}{{{section_menu}}}{{/section_menu}}
+			{{^section_menu}}&nbsp;{{/section_menu}}
+			</div>
+
+			<div id="subnavmenu">
+				<a href="{{www_path}}/"><span class="icon home"></span> Main page</a>
+				<div id="helpmenu">
+					<span class="icon compass"></span> Help
+					<ul>
+						<li><a href="#tips" id="tipslink">Tips for <b>this</b> page</a></li>
+						<li><a href="{{www_path}}/help/gettingstarted/">Getting started</a></li>
+						<li><a href="{{www_path}}/help/">FAQ</a></li>
+						<li><a href="http://help.cashmusic.org/">help.cashmusic.org</a></li>
+					</ul>
+				</div>
+				<div id="accountmenu">
+					<span class="icon cog"></span> {{user_email}}
+					<ul>
+						<li><a href="{{www_path}}/account/">Your account</a></li>
+						<li><a href="{{www_path}}/settings/">System settings</a></li>
+						<li><a href="http://cashmusic.org/donate/">Donate</a></li>
+						<li><a href="{{www_path}}/logout/" id="logout">Log out</a></li>
+					</ul>
+				</div>
+				<div class="clearfix">.</div>
+			</div>
+
+			<div id="tipspc">
+				<div id="pagetips">
+					<span id="current_pagetip">{{{ui_page_tip}}}</span>
+					<br />
+					<a id="tipscloselink" href="#">close</a>
+				</div>
+			</div>
+
+			<h1 id="pagetitle">{{ui_title}}</h1>
+			<div id="pagemessage">
+				{{#error_message}}<p><span class="highlightcopy errormessage">{{error_message}}</span></p>{{/error_message}}
+				{{#page_message}}<p><span class="highlightcopy">{{page_message}}</span></p>{{/page_message}}
+			</div>
+			<div id="pagedisplay">
+				{{{content}}}
+			</div>
+			<div class="clearfix">.</div>
+		</div>
+	</div>
+</div>
+
+<div id="footer">
+	<p><b>&copy; 2011 CASH Music.</b> All our code is open-source. <a href="{{www_path}}/licenses/" style="margin-left:0;">Learn more</a>. <a href="http://cashmusic.org/donate/" class="donatelink"><b>Donate</b></a></p>
+</div>
+
+</body>
+</html>
