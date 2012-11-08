@@ -1,0 +1,16 @@
+---
+applications:
+  .:
+    name: cashmusic
+    framework:
+      name: php
+      info:
+        mem: 128M
+        description: PHP Application
+        exec: 
+    url: ${name}.${target-base}
+    mem: 128M
+    instances: 1
+    services:
+      cashmusic-mysql:
+        type: mysql
