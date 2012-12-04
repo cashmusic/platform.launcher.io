@@ -16,13 +16,15 @@ foreach ($settings_types_data as $key => $data) {
 	} else {
 		$service_has_image = false;
 	}
-	$all_services[] = array(
-		'key' => $key,
-		'name' => $data['name'],
-		'alternating_type' => $alternating_type,
-		'service_has_image' => $service_has_image
-	);
-	$typecount++;
+	if (in_array($cash_admin->platform_type, $data['compatibility'])) {
+		$all_services[] = array(
+			'key' => $key,
+			'name' => $data['name'],
+			'alternating_type' => $alternating_type,
+			'service_has_image' => $service_has_image
+		);
+		$typecount++;
+	}
 }
 $cash_admin->page_data['all_services'] = new ArrayIterator($all_services);
 
@@ -36,43 +38,82 @@ if ($settings_action) {
 	switch ($settings_action) {
 		case 'add':
 			$settings_type = $request_parameters[1];
-			if (!isset($_POST['dosettingsadd'])) {
-				if (array_key_exists($settings_type, $settings_types_data)) {
-					$cash_admin->page_data['state_markup'] = '<h3>Connect to ' . $settings_types_data[$settings_type]['name'] . '</h3><p>' . $settings_types_data[$settings_type]['description'] . '</p>';
+			if ($cash_admin->platform_type == 'single') {
+				if (!isset($_POST['dosettingsadd'])) {
+					if (array_key_exists($settings_type, $settings_types_data)) {
+						$cash_admin->page_data['state_markup'] = '<h3>Connect to ' . $settings_types_data[$settings_type]['name'] . '</h3><p>' . $settings_types_data[$settings_type]['description'] . '</p>';
 
-					$cash_admin->page_data['state_markup'] .= '<form method="post" action="">'
-						. '<input type="hidden" name="dosettingsadd" value="makeitso" />'
-						. '<input type="hidden" name="settings_type" value="' . $settings_type . '" />'
-						. '<label for="settings_name">Name</label><br />'
-						. '<input type="text" id="settings_name" name="settings_name" placeholder="Give It A Name" />'
-						. '<div class="row_seperator tall">.</div>';
-						
-						foreach ($settings_types_data[$settings_type]['dataTypes'] as $key => $data) {
-							$cash_admin->page_data['state_markup'] .= '<label for="' . $key . '">' . $key . '</label><br />'
-								. '<input type="text" id="' . $key . '" name="' . $key . '" placeholder="' . ucfirst($key) . '" />'
-								. '<div class="row_seperator">.</div>';
-						}
+						$cash_admin->page_data['state_markup'] .= '<form method="post" action="">'
+							. '<input type="hidden" name="dosettingsadd" value="makeitso" />'
+							. '<input type="hidden" name="settings_type" value="' . $settings_type . '" />'
+							. '<label for="settings_name">Name</label><br />'
+							. '<input type="text" id="settings_name" name="settings_name" placeholder="Give It A Name" />'
+							. '<div class="row_seperator tall">.</div>';
+							
+							foreach ($settings_types_data[$settings_type]['dataTypes'][$cash_admin->platform_type] as $key => $data) {
+								$cash_admin->page_data['state_markup'] .= '<label for="' . $key . '">' . $key . '</label><br />'
+									. '<input type="text" id="' . $key . '" name="' . $key . '" placeholder="' . ucfirst($key) . '" />'
+									. '<div class="row_seperator">.</div>';
+							}
 
-						$cash_admin->page_data['state_markup'] .= '<div class="row_seperator">.</div><br />'
-							. '<div><input class="button" type="submit" value="Add The Connection" /></div>'
-							. '</form>';
+							$cash_admin->page_data['state_markup'] .= '<div class="row_seperator">.</div><br />'
+								. '<div><input class="button" type="submit" value="Add The Connection" /></div>'
+								. '</form>';
+					} else {
+						$cash_admin->page_data['state_markup'] = '<h3>Error</h3><p>The requested setting type could not be found.</p>';
+					}
 				} else {
-					$cash_admin->page_data['state_markup'] = '<h3>Error</h3><p>The requested setting type could not be found.</p>';
+					$settings_data_array = array();
+					foreach ($settings_types_data[$settings_type]['dataTypes'][$cash_admin->platform_type] as $key => $data) {
+						$settings_data_array[$key] = $_POST[$key];
+					}
+					$result = $page_data_object->setSettings(
+						$_POST['settings_name'],
+						$_POST['settings_type'],
+						$settings_data_array
+					);
+					if ($result) {
+						$cash_admin->page_data['action_message'] = '<b>Success.</b> Everything was added successfully. You\'ll see the new connection below.';
+					} else {
+						$cash_admin->page_data['action_message'] = '<b>Error.</b> Something went wrong. Please make sure you\'re using a unique name for this connection. Not only is that just smart, it\'s required.';
+					}
 				}
 			} else {
-				$settings_data_array = array();
-				foreach ($settings_types_data[$settings_type]['dataTypes'] as $key => $data) {
-					$settings_data_array[$key] = $_POST[$key];
-				}
-				$result = $page_data_object->setSettings(
-					$_POST['settings_name'],
-					$_POST['settings_type'],
-					$settings_data_array
-				);
-				if ($result) {
-					$cash_admin->page_data['action_message'] = '<b>Success.</b> Everything was added successfully. You\'ll see the new connection below.';
+				// oauthy
+				if (isset($_POST['dosettingsadd'])) {
+					// grab the stuff we need from $_POST then strip it out, pass the rest as data to store with the connection
+					$settings_name = $_POST['settings_name'];
+					$settings_type = $_POST['settings_type'];
+					unset($_POST['settings_name'],$_POST['settings_type'],$_POST['dosettingsadd']);
+					$result = $page_data_object->setSettings(
+						$settings_name,
+						$settings_type,
+						$_POST
+					);
+					if ($result) {
+						AdminHelper::formSuccess('Success. Connection added. You\'ll see it below.','/settings/connections/');
+					} else {
+						AdminHelper::formFailure('Error. Something just didn\'t work right.','/settings/connections/');
+					}
 				} else {
-					$cash_admin->page_data['action_message'] = '<b>Error.</b> Something went wrong. Please make sure you\'re using a unique name for this connection. Not only is that just smart, it\'s required.';
+					$finalize = false;
+					if (isset($request_parameters[2])) {
+						if ($request_parameters[2] == 'finalize') {
+							$finalize = true;
+						}
+					}
+					$seed_name = $settings_types_data[$settings_type]['seed'];
+					if (!$finalize) {
+						$return_url = rtrim(CASHSystem::getCurrentURL(),'/') . '/finalize';
+						// Here's a really fucked up way of calling $seed_name::getRedirectMarkup($return_url) [5.2+ compatibility]
+						$cash_admin->page_data['state_markup'] = call_user_func($seed_name . '::getRedirectMarkup', array($return_url));
+					} else {
+						// Here's a really fucked up way of calling $seed_name::handleRedirectReturn($_GET) [5.2+ compatibility]
+						$connections_base_uri = rtrim(str_replace($request_parameters,'',CASHSystem::getCurrentURL()),'/');
+						$_GET['connections_base_uri'] = $connections_base_uri;
+						$cash_admin->page_data['state_markup'] = call_user_func($seed_name . '::handleRedirectReturn', array($_GET));
+						//$cash_admin->page_data['state_markup'] = $seed_name::handleRedirectReturn($_GET);
+					}
 				}
 			}
 			break;
@@ -92,7 +133,7 @@ if ($settings_action) {
 					 .		'<input type="text" id="settings_name" name="settings_name" value="' . $settings_name . '" />'
 					 .	'<div class="row_seperator tall">.</div>';
 
-						foreach ($settings_types_data[$settings_type]['dataTypes'] as $key => $data) {
+						foreach ($settings_types_data[$settings_type]['dataTypes'][$cash_admin->platform_type] as $key => $data) {
 							$cash_admin->page_data['state_markup'] .=  '<label for="' . $key . '">' . $key . '</label><br />'
 								. '<input type="text" id="' . $key . '" name="' . $key . '" value="' . $settings_details[$key] . '" />'
 								. '<div class="row_seperator">.</div>';
@@ -105,7 +146,7 @@ if ($settings_action) {
 				}
 			} else {
 				$settings_data_array = array();
-				foreach ($settings_types_data[$settings_type]['dataTypes'] as $key => $data) {
+				foreach ($settings_types_data[$settings_type]['dataTypes'][$cash_admin->platform_type] as $key => $data) {
 					$settings_data_array[$key] = $_POST[$key];
 				}
 				$result = $page_data_object->setSettings(
@@ -151,8 +192,11 @@ if (!$settings_action || isset($_POST['dosettingsadd']) || isset($_POST['dosetti
 			}
 
 			$cash_admin->page_data['state_markup'] .= '</span>'
-				. '<div class="itemnav">'
-				.	'<a href="' . ADMIN_WWW_BASE_PATH . '/settings/connections/edit/' . $data['id'] . '/' . $data['name'] . '/' . $data['type'] . '/" class="mininav_flush">Edit</a> <a href="' . ADMIN_WWW_BASE_PATH . '/settings/connections/delete/' . $data['id'] . '/" class="needsconfirmation mininav_flush">Delete</a>'
+				. '<div class="itemnav">';
+				if ($cash_admin->platform_type == 'single') {
+					$cash_admin->page_data['state_markup'] .=  '<a href="' . ADMIN_WWW_BASE_PATH . '/settings/connections/edit/' . $data['id'] . '/' . $data['name'] . '/' . $data['type'] . '/" class="mininav_flush">Edit</a> ';
+				}
+				$cash_admin->page_data['state_markup'] .= '<a href="' . ADMIN_WWW_BASE_PATH . '/settings/connections/delete/' . $data['id'] . '/" class="needsconfirmation mininav_flush">Delete</a>'
 				. '</div>'
 				. '</div>';
 		}

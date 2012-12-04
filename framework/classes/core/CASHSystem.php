@@ -262,8 +262,29 @@
 		$cash_settings = json_decode(getenv('cashmusic_platform_settings'),true);
 		if (!$cash_settings) {
 			$cash_settings = parse_ini_file(CASH_PLATFORM_ROOT.'/settings/cashmusic.ini.php');
+			// check for system connections in environment and on file
+			$system_connections = json_decode(getenv('cashmusic_system_connections'),true);
+			if (!$system_connections && file_exists(CASH_PLATFORM_ROOT.'/settings/connections.json')) {
+				$system_connections = json_decode(file_get_contents(CASH_PLATFORM_ROOT.'/settings/connections.json'),true);
+			}
+			if ($system_connections) {
+				$cash_settings['system_connections'] = $system_connections;
+			}
+			// put all the settings into the current environment
 			$json_settings = json_encode($cash_settings);
 			putenv("cashmusic_platform_settings=$json_settings");
+		} else {
+			// so we found the environment variable — if we're on file-based settings the 'system_connections'
+			// would be set. if we're purely environment variables they wouldn't be present, so we add them
+			if (!isset($cash_settings['system_connections'])) {
+				if (file_exists(CASH_PLATFORM_ROOT.'/settings/connections.json')) {
+					$cash_settings['system_connections'] = json_decode(file_get_contents(CASH_PLATFORM_ROOT.'/settings/connections.json'),true);
+				}
+				$system_connections = json_decode(getenv('cashmusic_connection_settings'),true);
+				if ($system_connections) {
+					$cash_settings['system_connections'] = json_decode(getenv('cashmusic_connection_settings'),true);
+				}
+			}
 		}
 		if ($setting_name == 'all') {
 			return $cash_settings;
@@ -535,7 +556,23 @@
 	 */public static function sendEmail($subject,$user_id,$toaddress,$message_text,$message_title,$encoded_html=false) {
 		// TODO: look up user settings for email if user_id is set
 		$email_settings = CASHSystem::getDefaultEmail(true);
-		$fromaddress = $email_settings['systememail'];
+		if (CASHSystem::getSystemSettings('instancetype') == 'multi' && $user_id) {
+			$user_request = new CASHRequest(
+				array(
+					'cash_request_type' => 'people', 
+					'cash_action' => 'getuser',
+					'user_id' => $user_id
+				)
+			);
+			$user_details = $user_request->response['payload'];
+			if ($user_details['username']) {
+				$fromaddress = $user_details['username'] . ' <' . $user_details['email_address'] . '>';
+			} else {
+				$fromaddress = $user_details['email_address'];
+			}
+		} else {
+			$fromaddress = $email_settings['systememail'];
+		}
 
 		// deal with SMTP settings later:
 		$smtp = $email_settings['smtp'];
@@ -570,7 +607,7 @@
 		
 		// handle encoding of HTML if specific HTML isn't passed in:
 		if (!$encoded_html) {
-			$template = @file_get_contents(dirname(CASH_PLATFORM_PATH) . '/settings/defaults/system_email.mustache');
+			$template = @file_get_contents(CASH_PLATFORM_ROOT . '/settings/defaults/system_email.mustache');
 			$encoded_html = str_replace("\n","<br />\n",preg_replace('/(http:\/\/(\S*))/', '<a href="\1">\1</a>', $message_text));
 			if (!$template) {
 				$encoded_html .= '<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>' . $message_title . '</title></head><body>'
@@ -578,7 +615,7 @@
 						  . "</body></html>";
 			} else {
 				// open up some mustache in here:
-				include_once(dirname(CASH_PLATFORM_PATH) . '/lib/mustache/Mustache.php');
+				include_once(CASH_PLATFORM_ROOT . '/lib/mustache/Mustache.php');
 				$higgins = new Mustache;
 				$mustache_vars = array(
 					'encoded_html' => $encoded_html,
@@ -646,6 +683,12 @@
 		} else { 
 			return 'application/octet-stream';
 		}
+	}
+
+	public static function renderMustache($template,$vars_array) {
+		include_once(CASH_PLATFORM_ROOT . '/lib/mustache/Mustache.php');
+		$axelrod = new Mustache;
+		return $axelrod->render($template,$vars_array);
 	}
 } // END class 
 ?>

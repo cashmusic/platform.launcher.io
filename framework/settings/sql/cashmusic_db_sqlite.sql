@@ -1,8 +1,8 @@
 -- 
 -- CASH Music platform
 -- flavor: SQLite
--- schema version: 4
--- modified: August 7, 2012
+-- schema version: 6
+-- modified: November 17, 2012
 
 BEGIN TRANSACTION;
 
@@ -379,6 +379,16 @@ CREATE TABLE system_settings (
   type text,
   value text,
   user_id integer,
+  creation_date integer DEFAULT NULL,
+  modification_date integer DEFAULT NULL
+);
+
+CREATE TABLE system_templates (
+  id INTEGER PRIMARY KEY,
+  type text,
+  name text,
+  user_id integer,
+  template text,
   creation_date integer DEFAULT NULL,
   modification_date integer DEFAULT NULL
 );

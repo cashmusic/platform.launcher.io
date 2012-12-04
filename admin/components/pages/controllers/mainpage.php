@@ -17,9 +17,8 @@ $elements_response = $cash_admin->requestAndStore(
 	array(
 		'cash_request_type' => 'element', 
 		'cash_action' => 'getelementsforuser',
-		'user_id' => AdminHelper::getPersistentData('cash_effective_user')
-	),
-	'getelementsforuser'
+		'user_id' => $cash_admin->effective_user_id
+	)
 );
 if (is_array($elements_response['payload'])) {
 	$elements_data = AdminHelper::getElementsData();
@@ -28,6 +27,20 @@ if (is_array($elements_response['payload'])) {
 			$element['type_name'] = $elements_data[$element['type']]['name'];
 		}
 	}
+	// this essentially locks us to the newest template, meaning everyone gets just
+	// one page template at first. if it's there, it's live
+	$template_response = $cash_admin->requestAndStore(
+		array(
+			'cash_request_type' => 'system', 
+			'cash_action' => 'getnewesttemplate',
+			'all_details' => true,
+			'user_id' => $cash_admin->effective_user_id
+		)
+	);
+	if ($template_response['payload']) {
+		$cash_admin->page_data['page_template'] = $template_response['payload']['id'];
+	}
+
 	$cash_admin->page_data['elements_for_user'] = new ArrayIterator($elements_response['payload']);
 	$dashboard_news_response = CASHSystem::getURLContents('http://cashmusic.s3.amazonaws.com/permalink/admin/dashboard.html');
 	if ($dashboard_news_response) {
@@ -49,9 +62,8 @@ if (is_array($elements_response['payload'])) {
 			'cash_request_type' => 'asset', 
 			'cash_action' => 'getanalytics',
 			'analtyics_type' => 'recentlyadded',
-			'user_id' => AdminHelper::getPersistentData('cash_effective_user')
-		),
-		'asset_recently'
+			'user_id' => $cash_admin->effective_user_id
+		)
 	);
 	if (is_array($asset_response['payload'])) {
 		$cash_admin->page_data['step2_complete'] = 'complete';
@@ -60,14 +72,29 @@ if (is_array($elements_response['payload'])) {
 			array(
 				'cash_request_type' => 'people', 
 				'cash_action' => 'getlistsforuser',
-				'user_id' => AdminHelper::getPersistentData('cash_effective_user')
-			),
-			'getlistsforuser'
+				'user_id' => $cash_admin->effective_user_id
+			)
 		);
 		if (is_array($asset_response['payload'])) {
 			$cash_admin->page_data['step2_complete'] = 'complete';
 		}
 	}
+}
+
+$user_response = $cash_admin->requestAndStore(
+	array(
+		'cash_request_type' => 'people', 
+		'cash_action' => 'getuser',
+		'user_id' => $cash_admin->effective_user_id
+	)
+);
+if (is_array($user_response['payload'])) {
+		$current_username = $user_response['payload']['username'];
+	}
+$cash_admin->page_data['user_page_uri'] = rtrim(str_replace('admin', $current_username, CASHSystem::getCurrentURL()),'/');
+
+if ($cash_admin->platform_type == 'single') {
+	$cash_admin->page_data['platform_type_single'] = true;
 }
 
 $cash_admin->setPageContentTemplate('mainpage');

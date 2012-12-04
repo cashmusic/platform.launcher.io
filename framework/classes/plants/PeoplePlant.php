@@ -38,11 +38,12 @@ class PeoplePlant extends PlantBase {
 			'getlist'                => array('getList',array('direct','api_key')),
 			'getuser'                => array('getUser','direct'),
 			'getuseridforaddress'    => array('getUserIDForAddress','direct'),
+			'getuseridforusername'   => array('getUserIDForUsername','direct'),
 			'processwebhook'         => array('processWebhook',array('direct','api_key')),
 			'removeaddress'          => array('removeAddress','direct'),
 			'signintolist'           => array('validateUserForList',array('post','direct','api_key')),
 			'signup'                 => array('doSignup',array('direct','post','get','api_key')),
-			'verifyaddress'          => array('doAddressVerification','direct'),
+			'verifyaddress'          => array('doAddressVerification',array('direct','post','get')),
 			'viewlist'               => array('viewList','direct')
 		);
 		$this->plantPrep($request_type,$request);
@@ -109,7 +110,8 @@ class PeoplePlant extends PlantBase {
 			$address_country=false,
 			$phone=false,
 			$notes=false,
-			$links=false
+			$links=false,
+			$user_id=false
 		)
 	 {
 		$final_edits = array_filter(
@@ -130,15 +132,22 @@ class PeoplePlant extends PlantBase {
 			),
 			'CASHSystem::notExplicitFalse'
 		);
+		$condition = array(
+			"id" => array(
+				"condition" => "=",
+				"value" => $id
+			)
+		);
+		if ($user_id) {
+			$condition['user_id'] = array(
+				"condition" => "=",
+				"value" => $user_id
+			);
+		}
 		$result = $this->db->setData(
 			'contacts',
 			$final_edits,
-			array(
-				'id' => array(
-					'condition' => '=',
-					'value' => $id
-				)
-			)
+			$condition
 		);
 		return $result;
 	}
@@ -235,14 +244,14 @@ class PeoplePlant extends PlantBase {
 			} else {
 				$do_not_verify = false;
 			}
-			$result = $this->addAddress($address,$list_id,$do_not_verify,$comment,'',$name);
+			$result = $this->addAddress($address,$list_id,$do_not_verify,$comment,'',$name,false,false,true,'&element_id='.$element_id);
 			return $result;
 		} else {
 			return false;
 		}
 	}
 
-	protected function viewList($list_id,$unlimited=false) {
+	protected function viewList($list_id,$unlimited=false,$user_id=false) {
 		if ($unlimited) {
 			$result = $this->getUsersForList($list_id,false);
 		} else {
@@ -250,6 +259,11 @@ class PeoplePlant extends PlantBase {
 		}
 		if ($result) {
 			$list_details = $this->getList($list_id);
+			if ($user_id) {
+				if ($list_details['user_id'] != $user_id) {
+					return false;
+				}
+			}
 			$payload_data = array(
 				'details' => $list_details,
 				'members' => $result
@@ -293,8 +307,19 @@ class PeoplePlant extends PlantBase {
 	 * @param {int} $description -  a description, in case the name is terrible and offers no help
 	 * @param {int} $connection_id -  a third party connection with which the list should sync
 	 * @return id|false
-	 */protected function editList($list_id,$name=false,$description=false,$connection_id=false) {
-		$this->manageWebhooks($list_id,'remove');
+	 */protected function editList($list_id,$name=false,$description=false,$connection_id=false,$user_id=false) {
+		$condition = array(
+			"id" => array(
+				"condition" => "=",
+				"value" => $list_id
+			)
+		);
+		if ($user_id) {
+			$condition['user_id'] = array(
+				"condition" => "=",
+				"value" => $user_id
+			);
+		}
 		$final_edits = array_filter(
 			array(
 				'name' => $name,
@@ -306,14 +331,11 @@ class PeoplePlant extends PlantBase {
 		$result = $this->db->setData(
 			'people_lists',
 			$final_edits,
-			array(
-				"id" => array(
-					"condition" => "=",
-					"value" => $list_id
-				)
-			)
+			$condition
 		);
-		if ($result) {
+		if ($result && $connection_id) {
+			// remove then add id connection_id has changed
+			$this->manageWebhooks($list_id,'remove');
 			$this->manageWebhooks($list_id,'add');
 		}
 		return $result;
@@ -324,18 +346,25 @@ class PeoplePlant extends PlantBase {
 	 *
 	 * @param {int} $list_id - the list
 	 * @return bool
-	 */protected function deleteList($list_id) {
-		$this->manageWebhooks($list_id,'remove');
-		$result = $this->db->deleteData(
-			'people_lists',
-			array(
-				'id' => array(
-					'condition' => '=',
-					'value' => $list_id
-				)
+	 */protected function deleteList($list_id,$user_id=false) {
+		$condition = array(
+			"id" => array(
+				"condition" => "=",
+				"value" => $list_id
 			)
 		);
+		if ($user_id) {
+			$condition['user_id'] = array(
+				"condition" => "=",
+				"value" => $user_id
+			);
+		}
+		$result = $this->db->deleteData(
+			'people_lists',
+			$condition
+		);
 		if ($result) {
+			$this->manageWebhooks($list_id,'remove');
 			// check and make sure that the list has addresses associated
 			if ($this->getUsersForList($list_id)) {
 				// it does? delete them
@@ -515,16 +544,23 @@ class PeoplePlant extends PlantBase {
 	 *
 	 * @param {int} $list_id -     the id of the list
 	 * @return array|false
-	 */protected function getList($list_id) {
+	 */protected function getList($list_id,$user_id=false) {
+		$condition = array(
+			"id" => array(
+				"condition" => "=",
+				"value" => $list_id
+			)
+		);
+		if ($user_id) {
+			$condition['user_id'] = array(
+				"condition" => "=",
+				"value" => $user_id
+			);
+		}
 		$result = $this->db->getData(
 			'people_lists',
 			'*',
-			array(
-				"id" => array(
-					"condition" => "=",
-					"value" => $list_id
-				)
-			)
+			$condition
 		);
 		if ($result) {
 			return $result[0];
@@ -596,7 +632,7 @@ class PeoplePlant extends PlantBase {
 	 * @param {string} $additional_data -   any extra data (JSON, etc) a dev might pass with signup for later use
 	 * @param {string} $name -              if the user doesn't exist in the system this will be used as their display name
 	 * @return bool
-	 */protected function addAddress($address,$list_id,$do_not_verify=false,$initial_comment='',$additional_data='',$name='Anonymous',$force_verification_url=false,$request_from_service=false,$service_opt_in=true) {
+	 */protected function addAddress($address,$list_id,$do_not_verify=false,$initial_comment='',$additional_data='',$name='Anonymous',$force_verification_url=false,$request_from_service=false,$service_opt_in=true,$extra_querystring='') {
 		if (filter_var($address, FILTER_VALIDATE_EMAIL)) {
 			// first check to see if the email is already on the list
 			$user_id = $this->getUserIDForAddress($address);
@@ -653,7 +689,7 @@ class PeoplePlant extends PlantBase {
 							if (!$verification_url) {
 								$verification_url = CASHSystem::getCurrentURL();
 							}
-							$verification_url .= '?cash_request_type=people&cash_action=verifyaddress&address=' . urlencode($address) . '&list_id=' . $list_id . '&verification_code=' . $verification_code;
+							$verification_url .= '?cash_request_type=people&cash_action=verifyaddress&address=' . urlencode($address) . '&list_id=' . $list_id . '&verification_code=' . $verification_code . $extra_querystring;
 							CASHSystem::sendEmail(
 								'Complete sign-up for: ' . $list_details['name'],
 								$list_details['user_id'],
@@ -877,6 +913,29 @@ class PeoplePlant extends PlantBase {
 				"email_address" => array(
 					"condition" => "=",
 					"value" => $address
+				)
+			)
+		);
+		if ($result) {
+			return $result[0]['id'];
+		} else {
+			return false;
+		}
+	}
+
+	/**
+	 * Returns user id for a given username
+	 *
+	 * @param {string} $address -  the email address in question
+	 * @return id|false
+	 */protected function getUserIDForUsername($username) {
+		$result = $this->db->getData(
+			'users',
+			'id',
+			array(
+				"username" => array(
+					"condition" => "=",
+					"value" => strtolower($username)
 				)
 			)
 		);

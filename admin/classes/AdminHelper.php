@@ -37,6 +37,11 @@
 
 	public static function buildSectionNav() {
 		$pages_array = json_decode(file_get_contents(dirname(__FILE__).'/../components/menu/menu_en.json'),true);
+		// remove non-multi links
+		$platform_type = CASHSystem::getSystemSettings('instancetype');
+		if ($platform_type == 'multi') {
+			unset($pages_array['settings/update'],$pages_array['people/contacts']);
+		}
 		$endpoint = str_replace('_','/',BASE_PAGENAME);
 		$endpoint_parts = explode('/',$endpoint);
 		$section_pages = array();
@@ -374,7 +379,15 @@
 		}
 	}
 
-	public static function formFailure($error_message,$location='') {
+	public static function formFailure($error_message,$location=false) {
+		if (!$location) {
+			$location = REQUESTED_ROUTE;
+		}
+		if (isset($_REQUEST['forceroute'])) {
+			// we force a route using JS for certain lightboxed forms — really used 
+			// as an override that should take precenece over the standard $location
+			$location = $_REQUEST['forceroute'];
+		}
 		if (isset($_REQUEST['data_only'])) {
 			echo json_encode(
 				array(

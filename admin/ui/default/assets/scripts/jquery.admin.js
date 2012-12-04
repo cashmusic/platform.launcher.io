@@ -112,6 +112,9 @@
 		$('#pagedisplay').fadeTo(100,0.2, function() {
 			// do a POST to get the page data, change pushstate, redraw page
 			jQuery.post(url, formdata+'data_only=1', function(data) {
+				if (!("doredirect" in data)){
+					data.doredirect = false;
+				}
 				if (data.doredirect) {
 					if (data.showerror) {
 						refreshPageData(data.location,false,data.showerror);
@@ -121,6 +124,9 @@
 						refreshPageData(data.location);
 					}
 				} else {
+					if (!("fullredraw" in data)){
+						data.fullredraw = false;
+					}
 					if (!skiphistory) {
 						history.pushState(null, null, url);
 					}
@@ -180,7 +186,7 @@
 	 */
 	function setContentBehaviors() {
 		// show/hide drawers
-		prepDrawers('<span class="icon arrow_up"></span> Hide','<span class="icon arrow_down"></span> Show');
+		prepDrawers('<span class="icon arrow-up"></span> Hide','<span class="icon arrow-down"></span> Show');
 
 		// datepicker
 		$('input[type=date],input.date').datepicker();
@@ -273,6 +279,9 @@
 		// overlay cancel button event
 		$(document).on('click', '.modalcancel', function(e) {
 			e.preventDefault();
+			$('.modallightbox').fadeOut('fast', function() {
+					$('.modallightbox').remove();
+				});
 			$('.modalbg').fadeOut('fast', function() {
 				$('.modalbg').remove();
 			});
@@ -280,6 +289,9 @@
 
 		$(document).keyup(function(e) {
 			if(e.keyCode === 27) {
+				$('.modallightbox').fadeOut('fast', function() {
+					$('.modallightbox').remove();
+				});
 				$('.modalbg').fadeOut('fast', function() {
 					$('.modalbg').remove();
 				});
@@ -452,7 +464,7 @@
 	 **/
 
 	/**
-	 * doModalLightbox (function)
+	 * doModalConfirm (function)
 	 *
 	 * opens a modal confirmation box for delete links, etc. essentially this is a
 	 * silly "are you sure you want to click this?" message, and it sends along a
@@ -495,19 +507,21 @@
 				addedClass = 'returntocurrentroute '
 			}
 			// markup for the confirmation link
-			var markup = '<div class="modalbg"><div class="modallightbox ' + addedClass +
-						 data.specialcolor + '">' +
+			var modalTop = $("html").scrollTop() + 120;
+			var markup = '<div class="modalbg">&nbsp;</div><div class="modallightbox ' + addedClass +
+						 data.specialcolor + '" style="top:' + modalTop + 'px;">' +
 						 data.content + //jQuery.param(data) +
-						 '<div class="tar" style="position:relative;z-index:9876;"><a href="#" class="modalcancel smalltext"><span class="icon denied"></span> cancel</a></div>' +
-						 '</div></div></div>';
+						 '<div class="tar" style="position:relative;z-index:9876;"><a href="#" class="modalcancel smalltext"><span class="icon nope"></span> cancel</a></div>' +
+						 '</div></div>';
 
 			markup = $(markup);
 			markup.hide();
 			$('body').append(markup);
-			prepDrawers('<span class="icon arrow_up"></span> Hide','<span class="icon arrow_down"></span> Show');
+			prepDrawers('<span class="icon arrow-up"></span> Hide','<span class="icon arrow-down"></span> Show');
 
 			// show the dialog with a fast fade-in
 			$('.modalbg').fadeIn('fast');
+			$('.modallightbox').fadeIn('fast');
 		},'json');
 	}
 
@@ -532,13 +546,16 @@
 			drawer = $(this);
 			if (drawer.find('.drawerhandleaction').length == 0) {
 				if (drawer.hasClass('noprefix')) {
-					labelTextHidden = '';
-					labelTextVisible = '';
+					$.data(drawer,'labelTextHidden','');
+					$.data(drawer,'labelTextVisible','');
+				} else {
+					$.data(drawer,'labelTextHidden',labelTextHidden);
+					$.data(drawer,'labelTextVisible',labelTextVisible);
 				}
 				drawerHandle = drawer.find('.drawerhandle');
 				drawerContent = drawer.find('.drawercontent');
 				// create the label span and add necessary classes
-				drawerHandleLabel = $('<span class="drawerhandleaction">' + labelTextHidden + ' </span>');
+				drawerHandleLabel = $('<span class="drawerhandleaction">' + $.data(drawer,'labelTextHidden') + ' </span>');
 				if (labelClassVisible) {
 					drawerHandleLabel.addClass(labelClassHidden);
 				}
@@ -550,7 +567,7 @@
 					$(this).blur();
 					if (drawerContent.is(':hidden')) {
 						drawerContent.slideDown(200, function () {
-							drawerHandleLabel.html(labelTextVisible + ' ');
+							drawerHandleLabel.html($.data(drawer,'labelTextVisible') + ' ');
 							if (labelClassVisible) {
 								drawerHandleLabel.removeClass();
 								drawerHandleLabel.addClass(labelClassVisible);
@@ -559,7 +576,7 @@
 					} else {
 						drawerContent.slideUp(200, function () {
 							drawerContent.hide();
-							drawerHandleLabel.html(labelTextHidden + ' ');
+							drawerHandleLabel.html($.data(drawer,'labelTextHidden') + ' ');
 							if (labelClassHidden) {
 								drawerHandleLabel.removeClass();
 								drawerHandleLabel.addClass(labelClassHidden);

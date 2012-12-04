@@ -29,15 +29,19 @@ class SystemPlant extends PlantBase {
 				'addlogin'                => array('addLogin','direct'),
 				'addlockcode'             => array('addLockCode','direct'),
 				'deletesettings'          => array('deleteSettings','direct'),
+				'deletetemplate'          => array('deleteTemplate','direct'),
 				'getapicredentials'       => array('getAPICredentials','direct'),
 				'getlockcodes'            => array('getLockCodes','direct'),
+				'getnewesttemplate'       => array('getNewestTemplate','direct'),
 				'getsettings'             => array('getSettings','direct'),
+				'gettemplate'             => array('getTemplate','direct'),
 				'migratedb'               => array('doMigrateDB','direct'),
 				'redeemlockcode'          => array('redeemLockCode',array('direct','get','post')),
 				'setapicredentials'       => array('setAPICredentials','direct'),
 				'setlogincredentials'     => array('setLoginCredentials','direct'),
 				'setresetflag'            => array('setResetFlag','direct'),
 				'setsettings'             => array('setSettings','direct'),
+				'settemplate'             => array('setTemplate','direct'),
 				'validateapicredentials'  => array('validateAPICredentials','direct'),
 				'validatelogin'           => array('validateLogin','direct'),
 				'validateresetflag'       => array('validateResetFlag',array('direct','get','post'))
@@ -101,8 +105,10 @@ class SystemPlant extends PlantBase {
 	 * the login analytics to be tied to a specific element. 
 	 *
 	 * @return array|false
-	 */protected function validateLogin($address,$password,$require_admin=false,$verified_address=false,$browserid_assertion=false,$element_id=null) {
-		$this->sessionClearAll();
+	 */protected function validateLogin($address,$password,$require_admin=false,$verified_address=false,$browserid_assertion=false,$element_id=null,$keep_session=false) {
+		if (!$keep_session) {
+			$this->sessionClearAll();
+		}
 		$login_method = 'internal';
 		if ($verified_address && !$address) {
 			// claiming verified without an address? false!
@@ -187,14 +193,23 @@ class SystemPlant extends PlantBase {
 	 * @param {string} $address -  the email address in question
 	 * @param {string} $password - the password
 	 * @return array|false
-	 */protected function addLogin($address,$password,$is_admin=0,$display_name='Anonymous',$first_name='',$last_name='',$organization='',$address_country='',$force52compatibility=false) {
-		$password_hash = $this->generatePasswordHash($password,$force52compatibility);
+	 */protected function addLogin($address,$password,$is_admin=0,$username='',$display_name='Anonymous',$first_name='',$last_name='',$organization='',$address_country='',$force52compatibility=false) {
+		if ($is_admin) {
+			$password_hash = $this->generatePasswordHash($password,$force52compatibility);
+		} else {
+			// blank string for password hash if not an admin — will disallow logins withou
+			// a reset, but that's a good thing. and for sign-in style elements we'll simly 
+			// provide a password reset (a la the admin), which is good UX anyway. this will
+			// greatly speed things up...
+			$password_hash = '';
+		}
 
 		$result = $this->db->setData(
 			'users',
 			array(
 				'email_address' => $address,
 				'password' => $password_hash,
+				'username' => strtolower($username),
 				'display_name' => $display_name,
 				'first_name' => $first_name,
 				'last_name' => $last_name,
@@ -214,23 +229,56 @@ class SystemPlant extends PlantBase {
 	 *
 	 * @param {int} $user_id -  the user
 	 * @return array|false
-	 */protected function setLoginCredentials($user_id,$address,$password) {
-		$password_hash = $this->generatePasswordHash($password);
+	 */protected function setLoginCredentials($user_id,$address=false,$password=false,$username=false) {
+		if ($password) {
+			$password_hash = $this->generatePasswordHash($password);	
+		}
 
-		$credentials = array(
-			'email_address' => $address,
-			'password' => $password_hash
-		);
-		$result = $this->db->setData(
-			'users',
-			$credentials,
-			array(
-				"id" => array(
-					"condition" => "=",
-					"value" => $user_id
+		$credentials = array();
+		if ($address) {
+			$id_request = new CASHRequest(
+				array(
+					'cash_request_type' => 'people', 
+					'cash_action' => 'getuseridforaddress',
+					'address' => $address
 				)
-			)
-		);
+			);
+			if (!$id_request->response['payload']) {
+				// only go if not found. if it's found and different, then we can't have that email.
+				// if it's found but the same, then why bother changing?
+				$credentials['email_address'] = $address;
+			}
+		}
+		if ($password) {
+			$credentials['password'] = $password_hash;
+		}
+		if ($username) {
+			$id_request = new CASHRequest(
+				array(
+					'cash_request_type' => 'people', 
+					'cash_action' => 'getuseridforusername',
+					'username' => $username
+				)
+			);
+			if (!$id_request->response['payload']) {
+				// only go if not found. same reasons as above. seriously. you know what i'm saying.
+				$credentials['username'] = $username;
+			}
+		}
+		if (count($credentials)) {
+			$result = $this->db->setData(
+				'users',
+				$credentials,
+				array(
+					"id" => array(
+						"condition" => "=",
+						"value" => $user_id
+					)
+				)
+			);
+		} else {
+			$result = false;
+		}
 		return $result;
 	}
 
@@ -547,15 +595,146 @@ class SystemPlant extends PlantBase {
 	
 	
 	
-	
-	
-	
-	/*
+
+	/**
+	 * Removes a user page/embed template
 	 *
-	 * Here lie a bunch of lock code functions that need to reference elements
-	 * instead of assets. duh.
-	 *
+	 * @return bool
 	 */
+	protected function deleteTemplate($template_id,$user_id=false) {
+		$condition = array(
+			"id" => array(
+				"condition" => "=",
+				"value" => $template_id
+			)
+		);
+		if ($user_id) {
+			$condition['user_id'] = array(
+				"condition" => "=",
+				"value" => $user_id
+			);
+		}
+		$result = $this->db->deleteData(
+			'templates',
+			$condition
+		);
+		return $result;
+	}
+
+	/**
+	 * Gets a user page/embed template for display.
+	 *
+	 * @return string|false
+	 */
+	protected function getTemplate($template_id,$user_id=false,$all_details=false) {
+		$condition = array(
+			"id" => array(
+				"condition" => "=",
+				"value" => $template_id
+			)
+		);
+		if ($user_id) {
+			$condition['user_id'] = array(
+				"condition" => "=",
+				"value" => $user_id
+			);
+		}
+		$result = $this->db->getData(
+			'templates',
+			'*',
+			$condition
+		);
+		if ($result) {
+			if (!$all_details) {
+				return $result[0]['template'];
+			} else {
+				return $result[0];
+			}
+		} else {
+			return false;
+		}
+	}
+
+	/**
+	 * Gets the latest page/embed template for a given user.
+	 *
+	 * @return string|false
+	 */
+	protected function getNewestTemplate($user_id,$type='page',$all_details=false) {
+		$condition = array(
+			"user_id" => array(
+				"condition" => "=",
+				"value" => $user_id
+			),
+			"type" => array(
+				"condition" => "=",
+				"value" => $type
+			)
+		);
+		$result = $this->db->getData(
+			'templates',
+			'*',
+			$condition,
+			1,
+			'creation_date DESC'
+		);
+		if ($result) {
+			if (!$all_details) {
+				return $result[0]['template'];
+			} else {
+				return $result[0];
+			}
+		} else {
+			return false;
+		}
+	}
+
+	/**
+	 * Adds/edits a user page/embed template
+	 *
+	 * @return bool
+	 */
+	protected function setTemplate($user_id,$type=false,$name=false,$template=false,$template_id=false) {
+		$final_edits = array_filter(
+			array(
+				'user_id' => $user_id,
+				'type' => $type,
+				'name' => $name,
+				'template' => $template
+			),
+			'CASHSystem::notExplicitFalse'
+		);
+		$condition = false;
+		if ($template_id) {
+			$condition = array(
+				"id" => array(
+					"condition" => "=",
+					"value" => $template_id
+				),
+				"user_id" => array(
+					"condition" => "=",
+					"value" => $user_id
+				)
+			);
+		} else {
+			// if no template id we're doing an add, so make sure the type has been set
+			// correctly by checking for false and adding a default
+			if (!$type) {
+				$final_edits['type'] = 'page';
+			}
+		}
+		// insert/update
+		$result = $this->db->setData(
+			'templates',
+			$final_edits,
+			$condition
+		);
+		return $result;
+	}
+
+	
+	
+	
 	
 	/**
 	 * Retrieves the last known UID or if none are found creates and returns a 
@@ -697,20 +876,27 @@ class SystemPlant extends PlantBase {
 	 *
 	 * @return array|false
 	 */
-	protected function getLockCodes($scope_table_alias,$scope_table_id) {
+	protected function getLockCodes($scope_table_alias,$scope_table_id,$user_id=false) {
+		$condition = array(
+			"scope_table_alias" => array(
+				"condition" => "=",
+				"value" => $scope_table_alias
+			),
+			"scope_table_id" => array(
+				"condition" => "=",
+				"value" => $scope_table_id
+			)
+		);
+		if ($user_id) {
+			$condition['user_id'] = array(
+				"condition" => "=",
+				"value" => $user_id
+			);
+		}
 		$result = $this->db->getData(
 			'lock_codes',
 			'*',
-			array(
-				"scope_table_alias" => array(
-					"condition" => "=",
-					"value" => $scope_table_alias
-				),
-				"scope_table_id" => array(
-					"condition" => "=",
-					"value" => $scope_table_id
-				)
-			)
+			$condition
 		);
 		return $result;
 	}

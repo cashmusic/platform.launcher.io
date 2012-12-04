@@ -14,7 +14,7 @@ if (isset($_POST['domigrate'])) {
 		'password' => $_POST['adminpassword'],
 		'database' => $_POST['databasename']
 	);
-	$migrate_request = new CASHRequest(
+	$migrate_response = $cash_admin->requestAndStore(
 		array(
 			'cash_request_type' => 'system', 
 			'cash_action' => 'migratedb',
@@ -22,7 +22,7 @@ if (isset($_POST['domigrate'])) {
 			'tosettings' => $new_settings
 		)
 	);
-	if ($migrate_request->response['payload']) {
+	if ($migrate_response['payload']) {
 		AdminHelper::formSuccess('Success. Database upgraded. Enjoy!');
 	} else {
 		AdminHelper::formFailure('Error. There was a problem migrating your data.');
@@ -46,6 +46,9 @@ if ($cash_admin->page_data['db_type'] == 'MySQL') {
 	$cash_admin->page_data['migrate_from_sqlite'] = true;
 }
 
+if ($cash_admin->platform_type == 'single') {
+	$cash_admin->page_data['platform_type_single'] = true;
+}
 $cash_admin->page_data['platform_path'] = CASH_PLATFORM_PATH;
 
 $cash_admin->setPageContentTemplate('settings');

@@ -34,6 +34,14 @@ class S3Seed extends SeedBase {
 		}
 	}
 
+	public static function getRedirectMarkup($data=false) {
+		return '<b>popup stuff</b>';
+	}
+
+	public static function handleRedirectReturn($data=false) {
+
+	}
+
 	public function getBucketName() {
 		return $this->bucket;
 	}

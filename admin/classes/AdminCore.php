@@ -14,11 +14,12 @@
  */class AdminCore  {
 	protected $stored_responses;
 	protected $stored_data;
-	protected $effective_user_id;
+	public $effective_user_id;
 	public $error_state = false;
 	public $page_data;
 	public $page_content_template = '';
 	public $mustache_groomer;
+	public $platform_type;
 	
 	// default admin settings:
 	protected $default_user_settings = array(
@@ -34,6 +35,8 @@
 	);
 	
 	public function __construct($effective_user_id=false) {
+		$this->platform_type = CASHSystem::getSystemSettings('instancetype');
+		if (!$this->platform_type) $this->platform_type = 'single';
 		$this->stored_responses = array();
 		$this->stored_data = array();
 		$this->page_data = array();
@@ -172,11 +175,18 @@
 	 * Does a CASH Request and stores the response in $stored_responses
 	 *
 	 * @return array
-	 */public function requestAndStore($request_array,$store_name='') {
+	 */public function requestAndStore($request_array,$store_name=false) {
+		if (!isset($request_array['user_id'])) {
+			$request_array['user_id'] = $this->effective_user_id;
+		}
 		$cash_admin_request = new CASHRequest($request_array);
-		$this->stored_responses[$store_name] = $cash_admin_request->response;
-		unset($cash_admin_request);
-		return $this->stored_responses[$store_name];
+		if ($store_name) {
+			$this->stored_responses[$store_name] = $cash_admin_request->response;
+			unset($cash_admin_request);
+			return $this->stored_responses[$store_name];
+		} else {
+			return $cash_admin_request->response;
+		}
 	}
 
 	/**

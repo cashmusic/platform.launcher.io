@@ -1,8 +1,8 @@
 -- 
 -- CASH Music platform
 -- flavor: MySQL
--- schema version: 4
--- modified: August 12, 2012
+-- schema version: 6
+-- modified: November 17, 2012
 
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -40,7 +40,7 @@ CREATE TABLE `assets_analytics` (
   `access_time` int(11) NOT NULL,
   `client_ip` varchar(39) NOT NULL,
   `client_proxy` varchar(39) NOT NULL,
-  `cash_session_id` varchar(24) NOT NULL,
+  `cash_session_id` varchar(255) NOT NULL,
   `creation_date` int(11) DEFAULT NULL,
   `modification_date` int(11) DEFAULT '0',
   PRIMARY KEY (`id`),
@@ -222,7 +222,7 @@ CREATE TABLE `elements_analytics` (
   `access_time` int(11) NOT NULL,
   `client_ip` varchar(39) NOT NULL,
   `client_proxy` varchar(39) NOT NULL,
-  `cash_session_id` varchar(24) NOT NULL,
+  `cash_session_id` varchar(255) NOT NULL,
   `creation_date` int(11) DEFAULT NULL,
   `modification_date` int(11) DEFAULT '0',
   PRIMARY KEY (`id`),
@@ -433,5 +433,16 @@ CREATE TABLE `system_settings` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+DROP TABLE IF EXISTS `system_templates`;
+CREATE TABLE `system_templates` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `type` varchar(255),
+  `name` varchar(255),
+  `user_id` int(11) NOT NULL,
+  `template` text,
+  `creation_date` int(11) DEFAULT NULL,
+  `modification_date` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 SET FOREIGN_KEY_CHECKS = 1;
