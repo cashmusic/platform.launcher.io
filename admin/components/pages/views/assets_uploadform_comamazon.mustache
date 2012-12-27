@@ -1,0 +1,71 @@
+{{#AWSAccessKeyId}}
+<form accept-charset="UTF-8" id="file_upload" method="post" class="nodefaultajax" action="https://{{bucketname}}.s3.amazonaws.com/" enctype="multipart/form-data">
+	<input type="hidden" name="key" value="{{key}}" />
+	<input type="hidden" name="AWSAccessKeyId" value="{{AWSAccessKeyId}}" />
+	<input type="hidden" name="acl" value="{{acl}}" />
+	<input type="hidden" name="success_action_status" value="{{success_action_status}}" />
+	<input type="hidden" name="policy" value="{{policy}}" />
+	<input type="hidden" name="signature" value="{{signature}}" />
+	<input type="file" name="file" />
+</form>
+
+<div id="loading" style="position:relative;">
+	<div class="modalbg"></div>
+
+	<div style="position:fixed;z-index:9876;width:350px;top:300px;left:50%;margin-left:-125px;">
+		<div style="width:75px;height:75px;margin-right:12px;float:left;background-image:url({{www_path}}/ui/default/assets/images/dog_spinner.gif)"></div>
+		<h3>Uploading</h3>This may take a few minutes. Please do not close this window.
+	</div>
+	<div class="row_seperator">.</div>
+</div>
+
+<script src="{{www_path}}/ui/default/assets/scripts/jquery.iframe-transport.js"></script>
+<script src="{{www_path}}/ui/default/assets/scripts/jquery.fileupload.js"></script>
+
+<script type="text/javascript">
+	$(function() {
+		var filename,filekey,connectionId,finalizeUrl;
+		filekey = '{{key}}';
+		connectionId = '{{connection_id}}';
+		finalizeUrl = '{{www_path}}/ajax/finalizeupload';
+		$('#loading').hide();
+
+		$('#file_upload').fileupload({
+			forceIframeTransport: true,
+			autoUpload: true,
+			add: function (e, data) {
+				// remember the filename and submit
+				filename = data.files[0].name;
+				data.submit();
+			},
+			send: function(e, data) {
+				// spinner, etc
+				$('#loading').show();
+			},
+			fail: function(e, data) {
+				// we should do something useful here
+			},
+			done: function (event, data) {
+				// hide the spinner, add the final key to the location field of the
+				// main form, call ajax/finalizeupload with the key
+
+				var finalkey = filekey.replace('${filename}','') + filename;
+				$('#asset_location').val(finalkey);
+				$('.upload-corral').fadeOut();
+
+				jQuery.post(finalizeUrl, 'connection_id='+connectionId+'&filename='+finalkey, function(data) {
+					if (data.success) {
+						//alert('done: ' + finalkey);
+					} else {
+						//alert('done, but could not set MIME type: ' + finalkey);
+					}
+				},'json');
+				$('#loading').hide();
+			}
+		});
+	});
+</script>
+{{/AWSAccessKeyId}}
+{{^AWSAccessKeyId}}
+	You need to choose a connection.
+{{/AWSAccessKeyId}}
