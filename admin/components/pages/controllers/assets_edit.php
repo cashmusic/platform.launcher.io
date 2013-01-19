@@ -77,7 +77,10 @@ if (isset($_POST['doassetedit'])) {
 			'publishing' => $_POST['publishing'],
 			'fulfillment' => json_decode($_POST['metadata_fulfillment']),
 			'private' => json_decode($_POST['metadata_private']),
-			'cover' => $_POST['metadata_cover']
+			'cover' => $_POST['metadata_cover'],
+			'publicist_name' => $_POST['publicist_name'],
+			'publicist_email' => $_POST['publicist_email'],
+			'onesheet' => $_POST['onesheet']
 		);
 	}
 
@@ -143,8 +146,7 @@ $cash_admin->page_data['tag_markup'] = $tag_markup;
 
 // Reset page title to reflect the asset:
 $cash_admin->page_data['ui_title'] = 'Edit “' . $cash_admin->page_data['title'] . '”';
-// Set favorite status:
-$cash_admin->page_data['is_favorite'] = $cash_admin->isAssetAFavorite($request_parameters[0]);
+
 // Code count
 if ($asset_codes) {
 	$cash_admin->page_data['asset_codes_count'] = count($asset_codes);

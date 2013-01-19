@@ -35,17 +35,12 @@
 
 	// initial load setup:
 	$(document).ready(function() {
-		var currentPath = location.pathname;
-
 		setUIBehaviors();
 		setContentBehaviors();
 
 		// make back/forward buttons work
 		window.addEventListener("popstate", function(e) {
-			if (location.pathname != currentPath) {
-				refreshPageData(location.pathname,null,null,null,true);
-				currentPath = location.pathname;
-			}
+			refreshPageData(location.pathname,null,null,null,true);
 		});
 	});
 
@@ -90,6 +85,60 @@
 		window.scrollTo(0,0);
 	}
 
+	/*
+	 * doPersistentPost(url,formdata,showerror,showmessage,skiphistory) 
+	 *
+	 * When we made the move to hosted there were a lot of issues with null returns
+	 * — was never able to duplicate it locally, so it probably has something to do 
+	 * with the server config, latency, or load balancing.
+	 *
+	 * This function pulls out a lot of what was in refreshPageData and allows us to
+	 * check for null success returns and try again. Loop potential like you read
+	 * about...
+	 */
+	function doPersistentPost(url,formdata,showerror,showmessage,skiphistory) {
+		// do a POST to get the page data, change pushstate, redraw page
+		jQuery.post(url, formdata+'data_only=1', function(data) {
+			if (!data) {
+				doPersistentPost(url,formdata,showerror,showmessage,skiphistory);
+			} else {
+				if (!("doredirect" in data)){
+					data.doredirect = false;
+				}
+				if (data.doredirect) {
+					if (data.showerror) {
+						refreshPageData(data.location,false,data.showerror);
+					} else if (data.showmessage) {
+						refreshPageData(data.location,false,false,data.showmessage);
+					} else {
+						refreshPageData(data.location);
+					}
+				} else {
+					if (!("fullredraw" in data)){
+						data.fullredraw = false;
+					}
+					if (data.fullredraw) {
+						var newbody = data.fullcontent.replace(/^[\s\S]*?<body[^>]*>([\s\S]*?)<\/body>[\s\S]*?$/i,"$1");
+						$('body').html(newbody);
+					} else {
+						if (showerror) {
+							data.error_message = showerror;
+						}
+						if (showmessage) {
+							data.page_message = showmessage;
+						}
+						redrawPage(data);
+					}
+					if (!skiphistory) {
+						history.pushState(null, null, url);
+					}
+					setContentBehaviors();
+				}
+				$('#pagedisplay').fadeTo(200,1);
+			}
+		},'json');
+	}
+
 	/**
 	 * refreshPageData (function)
 	 *
@@ -113,42 +162,7 @@
 
 		// fade out
 		$('#pagedisplay').fadeTo(100,0.2, function() {
-			// do a POST to get the page data, change pushstate, redraw page
-			jQuery.post(url, formdata+'data_only=1', function(data) {
-				if (!("doredirect" in data)){
-					data.doredirect = false;
-				}
-				if (data.doredirect) {
-					if (data.showerror) {
-						refreshPageData(data.location,false,data.showerror);
-					} else if (data.showmessage) {
-						refreshPageData(data.location,false,false,data.showmessage);
-					} else {
-						refreshPageData(data.location);
-					}
-				} else {
-					if (!("fullredraw" in data)){
-						data.fullredraw = false;
-					}
-					if (!skiphistory) {
-						history.pushState(null, null, url);
-					}
-					if (data.fullredraw) {
-						var newbody = data.fullcontent.replace(/^[\s\S]*?<body[^>]*>([\s\S]*?)<\/body>[\s\S]*?$/i,"$1");
-						$('body').html(newbody);
-					} else {
-						if (showerror) {
-							data.error_message = showerror;
-						}
-						if (showmessage) {
-							data.page_message = showmessage;
-						}
-						redrawPage(data);
-					}
-					setContentBehaviors();
-				}
-				$('#pagedisplay').fadeTo(200,1);
-			},'json');
+			doPersistentPost(url,formdata,showerror,showmessage,skiphistory);
 		});
 	}
 
@@ -302,8 +316,22 @@
 		});
 
 		// to-be-copied code
-		$(document).on('click', 'code input', function(e) {
-			$(this).select();
+		// $(document).on('click', 'code input, code textarea', function(e) {
+		// 	$(this).select();
+		// });
+		$(document).on('click', '.codearea', function(e) {
+			element = this;
+			if (document.body.createTextRange) {
+				var range = document.body.createTextRange();
+				range.moveToElementText(element);
+				range.select();
+		   } else if (window.getSelection) {
+				var selection = window.getSelection();        
+				var range = document.createRange();
+				range.selectNodeContents(element);
+				selection.removeAllRanges();
+				selection.addRange(range);
+		   }
 		});
 
 		// modal pop-ups
@@ -445,13 +473,30 @@
 			iframeSrc = $(this).data('upload-endpoint'),
 			connectionID = $('#connection_id').val();
 
-			//console.log('is this iframeSrc? ', iframeSrc);
-
 			if ( connectionID == '0' ) {
 				alert('Sorry, can\'t upload without a connection. Have you tried a normal link?');
 				return false;
 			} else {
 				trigger.parents('.fadedtext').animate({ opacity: 0 });
+			}
+		});
+
+		$(document).on('keydown', 'textarea.taller', function(e) {
+			// repurposed from here: http://jsfiddle.net/sdDVf/8/
+
+			if(e.keyCode === 9) { 
+				var start = this.selectionStart;
+					end = this.selectionEnd;
+				var target = $(this);
+
+				// set textarea value to: text before caret + tab + text after caret
+				target.val(target.val().substring(0, start)
+							+ "\t"
+							+ target.val().substring(end));
+
+				// put caret at right position again
+				this.selectionStart = this.selectionEnd = start + 1;
+				return false;
 			}
 		});
 	}

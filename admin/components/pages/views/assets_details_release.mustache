@@ -75,11 +75,11 @@
 	<br />
 	<h3>Additional Fields</h3>
 	<div class="drawer">
-		<a class="drawerhandle">extra options</a>
+		<a class="drawerhandle">standard metadata</a>
 		<div class="drawercontent">
 			<fieldset>
-				<label class="col_oneoftwo">Label Name <input type="text" id="label_name" name="label_name" value="{{metadata_label_name}}" placeholder="Stax Records" /></label>
-				<label class="col_oneoftwo lastcol">Genre <input type="text" id="genre" name="genre" value="{{metadata_genre}}" placeholder="Dub-Step" /></label>
+				<label class="col_oneoftwo">Label Name <input type="text" id="label_name" name="label_name" value="{{metadata_label_name}}" placeholder="" /></label>
+				<label class="col_oneoftwo lastcol">Genre <input type="text" id="genre" name="genre" value="{{metadata_genre}}" placeholder="" /></label>
 				<label class="col_oneoftwo">Copyright <textarea id="copyright" name="copyright">{{metadata_copyright}}</textarea></label>
 				<label class="col_oneoftwo lastcol">Publishing <textarea id="publishing" name="publishing">{{metadata_publishing}}</textarea></label>
 				<div class="formats col_oneoftwo">
@@ -100,9 +100,28 @@
 					<a href="#" class="add-format"><span class="icon circle-add smalltext"></span> Add New Format</a-->
 
 				</div>
+			</fieldset>
+			<div class="row_seperator">.</div>
+		</div>
+	</div>
 
-				<div class="private-files col_oneoftwo lastcol">
-					<div class="row_seperator">.</div>
+	<div class="drawer">
+		<a class="drawerhandle">press/PR information</a>
+		<div class="drawercontent">
+			<fieldset>
+				<label class="col_oneoftwo">Publicist's Name <input type="text" id="publicist_name" name="publicist_name" value="{{metadata_publicist_name}}" placeholder="" /></label>
+				<label class="col_oneoftwo lastcol">Publicist's Email<input type="text" id="publicist_email" name="publicist_email" value="{{metadata_publicist_email}}" placeholder="" /></label>
+				<label>Bio / Onesheet<textarea id="onesheet" name="onesheet" class="tall">{{metadata_onesheet}}</textarea></label>
+			</fieldset>
+			<div class="row_seperator">.</div>
+		</div>
+	</div>
+
+	<div class="drawer">
+		<a class="drawerhandle">miscellaneous</a>
+		<div class="drawercontent">
+			<fieldset>
+				<div class="private-files col_oneoftwo">
 					<label>Private Files</label><br />
 					{{#private_files}}
 						<ul class="alternating">
@@ -128,45 +147,53 @@
 				</div>
 
 			</fieldset>
+			<div class="row_seperator">.</div>
 		</div>
 	</div>
 
-	<div class="row_seperator">.</div>
-	<div class="col_oneoftwo">
-		<br />
-		<input class="button nojs" type="submit" value="Edit the release" />
-		</form>
+<div>
+		<div class="row_seperator">.</div><br />
+		<div class="col_oneoftwo">
+			<small class="fadedtext"><span class="icon wallet"></span> Selling out?</small> <a href="{{www_path}}/commerce/items/add/selectedasset/{{id}}" class="lightboxed returntocurrentroute"><small><b>Define commerce settings</b></small></a>
 
-		<small class="fadedtext"><span class="icon wallet"></span> Selling out?</small> <a href="{{www_path}}/commerce/items/add/selectedasset/{{id}}" class="lightboxed returntocurrentroute"><small><b>Define commerce settings</b></small></a>
+			<br />
+			<small class="fadedtext"><span class="icon cancel-circle"></span> Need it gone?</small> <a href="{{www_path}}/assets/delete/{{id}}" class="usecolor1 needsconfirmation"><small><b>Delete this release</b></small></a>
 
-		<div class="row_seperator">.</div>
-		<div class="drawer noprefix">
-			<small class="fadedtext"><span class="icon browser-download-2"></span> Need download codes? <a class="drawerhandle usecolor1">Export or create codes</a></small>
-			<div class="drawercontent">
-				<p>
-				{{#asset_codes_count}}
-					There are {{asset_codes_count}} codes for this asset. <a href="{{www_path}}/assets/edit/{{id}}?exportcodes=1" class="noajax">Export them!</a>
-				{{/asset_codes_count}}
-				{{^asset_codes_count}}
-					There are no download codes for this asset.
-				{{/asset_codes_count}}
-				</p>
-				<form accept-charset="UTF-8" method="post" action="{{www_path}}/assets/edit/{{id}}">
+			<div class="row_seperator">.</div>
+			<input class="button nojs" type="submit" value="Save changes" />
+			</form>
 
-				<label for="add_codes_qty">Add (qty) more codes</label><br />
-				<div class="col_oneoftwo">
-					<input type="text" name="add_codes_qty" id="add_codes_qty" value="500" />
+		</div>
+
+		<div class="col_oneoftwo lastcol">
+			<div class="drawer noprefix">
+				<small class="fadedtext"><span class="icon browser-download-2"></span> Need download codes?</small> <a class="drawerhandle usecolor1">Export or create codes</a>
+				<div class="drawercontent">
+					<p>
+					{{#asset_codes_count}}
+						<br /><small>There are {{asset_codes_count}} codes for this asset. <a class="usecolor1 noajax" href="{{www_path}}/assets/edit/{{id}}?exportcodes=1"><b>Export them!</b></a></small>
+					{{/asset_codes_count}}
+					{{^asset_codes_count}}
+						<br /><small>There are no download codes for this asset.</small>
+					{{/asset_codes_count}}
+					</p>
+					<form accept-charset="UTF-8" method="post" action="{{www_path}}/assets/edit/{{id}}">
+
+					<label for="add_codes_qty">Add (qty) more codes</label><br />
+					<div class="col_oneoftwo">
+						<input type="text" name="add_codes_qty" id="add_codes_qty" value="500" />
+					</div>
+					<div class="col_oneoftwo lastcol">
+						<input type="submit" class="button" value="add codes" />
+					</div>
+					</form>
+					<div class="row_seperator">.</div>
 				</div>
-				<div class="col_oneoftwo lastcol">
-					<input type="submit" class="button" value="add codes" />
-				</div>
-				</form>
-				<div class="row_seperator">.</div>
 			</div>
 		</div>
-
-		<br /><br />
-		<input class="button onlyjs externalsubmit" type="submit" data-cash-target-form="#add-release-form" value="Edit the release" />
+		
+		<div class="row_seperator tall">.</div>
+		<input class="button onlyjs externalsubmit" type="submit" data-cash-target-form="#edit-file-form" value="Save changes" />
 	</div>
 
-	<div class="row_seperator">.</div>
+<div class="row_seperator">.</div>
