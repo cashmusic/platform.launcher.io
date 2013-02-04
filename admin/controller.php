@@ -50,6 +50,46 @@ if (isset($_REQUEST['data_only'])) {
 }
 
 /**
+ * USER LOGIN
+ * look specifically for a 'login' POST parameter and handle the actual login
+ */
+$cash_admin->page_data['login_message'] = 'Hello. Log In';
+if (isset($_POST['login'])) {
+	$browseridassertion = false;
+	if (isset($_POST['browseridassertion'])) {
+		if ($_POST['browseridassertion'] != -1) {
+			$browseridassertion = $_POST['browseridassertion'];
+		}
+	}
+	$login_details = AdminHelper::doLogin($_POST['address'],$_POST['password'],true,$browseridassertion);
+	if ($login_details !== false) {
+		CASHSystem::startSession();
+		$admin_primary_cash_request->sessionSet('cash_actual_user',$login_details);
+		$admin_primary_cash_request->sessionSet('cash_effective_user',$login_details);
+		$cash_admin->effective_user_id = $login_details;
+		if ($browseridassertion) {
+			$address = CASHSystem::getBrowserIdStatus($browseridassertion);
+		} else {
+			$address = $_POST['address'];
+		}
+		$admin_primary_cash_request->sessionSet('cash_effective_user_email',$address);
+		
+		$run_login_scripts = true;
+		
+		$cash_admin->page_data['fullredraw'] = true;
+	} else {
+		$admin_primary_cash_request->sessionClearAll();
+		$cash_admin->page_data['login_message'] = 'Try Again';
+		$cash_admin->page_data['login_error'] = true;
+	}
+}
+
+if ($run_login_scripts) {
+	// handle initial login chores
+	$cash_admin->runAtLogin();
+}
+
+/**
  * ROUTING
  * grab path from .htaccess redirect, determine the appropriate route, parse out 
  * additional parameters
@@ -114,44 +154,11 @@ if (!isset($cash_admin->page_data['requested_route'])) {
 	$cash_admin->page_data['requested_route'] = '/';
 }
 
-/**
- * USER LOGIN
- * look specifically for a 'login' POST parameter and handle the actual login
- */
-$cash_admin->page_data['login_message'] = 'Hello. Log In';
-if (isset($_POST['login'])) {
-	$browseridassertion = false;
-	if (isset($_POST['browseridassertion'])) {
-		if ($_POST['browseridassertion'] != -1) {
-			$browseridassertion = $_POST['browseridassertion'];
-		}
-	}
-	$login_details = AdminHelper::doLogin($_POST['address'],$_POST['password'],true,$browseridassertion);
-	if ($login_details !== false) {
-		CASHSystem::startSession();
-		$admin_primary_cash_request->sessionSet('cash_actual_user',$login_details);
-		$admin_primary_cash_request->sessionSet('cash_effective_user',$login_details);
-		if ($browseridassertion) {
-			$address = CASHSystem::getBrowserIdStatus($browseridassertion);
-		} else {
-			$address = $_POST['address'];
-		}
-		$admin_primary_cash_request->sessionSet('cash_effective_user_email',$address);
-		
-		$run_login_scripts = true;
-		
-		$cash_admin->page_data['fullredraw'] = true;
-	} else {
-		$admin_primary_cash_request->sessionClearAll();
-		$cash_admin->page_data['login_message'] = 'Try Again';
-		$cash_admin->page_data['login_error'] = true;
-	}
-}
-
-if ($run_login_scripts) {
-	// handle initial login chores
-	$cash_admin->runAtLogin();
-}
+// check for TOS and privacy stuff
+$cash_admin->page_data['showterms'] = false;
+$cash_admin->page_data['showprivacy'] = false;
+if (file_exists(ADMIN_BASE_PATH . '/terms.md')) {$cash_admin->page_data['showterms'] = true;}
+if (file_exists(ADMIN_BASE_PATH . '/privacy.md')) {$cash_admin->page_data['showprivacy'] = true;}
 
 /**
  * RENDER PAGE
@@ -242,7 +249,7 @@ if ($admin_primary_cash_request->sessionGet('cash_actual_user')) {
 							   . 'Thank you.';
 				CASHSystem::sendEmail(
 					'A password reset has been requested',
-					CASHSystem::getDefaultEmail(),
+					false,
 					$_POST['address'],
 					$reset_message,
 					'Reset your password?'
@@ -254,8 +261,29 @@ if ($admin_primary_cash_request->sessionGet('cash_actual_user')) {
 		}
 	}
 
+	if (isset($_GET['showlegal'])) {
+		$cash_admin->page_data['legal_markup'] = '';
+		if (file_exists(CASH_PLATFORM_ROOT . '/lib/markdown/markdown.php')) {
+			include_once(CASH_PLATFORM_ROOT . '/lib/markdown/markdown.php');
+		}
+		if (isset($cash_admin->page_data['showterms'])) {
+			$cash_admin->page_data['legal_markup'] .= '<br /><br /><br /><h3>Terms of service</h3>';
+			$cash_admin->page_data['legal_markup'] .= Markdown(file_get_contents(ADMIN_BASE_PATH . '/terms.md'));
+		}
+		if (isset($cash_admin->page_data['showprivacy'])) {
+			$cash_admin->page_data['legal_markup'] .= '<br /><br /><br /><h3>Privacy policy</h3>';
+			$cash_admin->page_data['legal_markup'] .= Markdown(file_get_contents(ADMIN_BASE_PATH . '/privacy.md'));
+		}
+	}
+
 	// this for returning password reset people:
 	if (isset($_GET['dopasswordreset'])) {
+		if (!defined('MINIMUM_PASSWORD_LENGTH')) {
+			$cash_admin->page_data['minimum_password_length'] = 10;
+		} else {
+			$cash_admin->page_data['minimum_password_length'] = MINIMUM_PASSWORD_LENGTH;
+		}
+
 		$valid_key = $cash_admin->requestAndStore(
 			array(
 				'cash_request_type' => 'system', 
@@ -296,7 +324,7 @@ if ($admin_primary_cash_request->sessionGet('cash_actual_user')) {
 						'cash_action' => 'setlogincredentials',
 						'user_id' => $id_response['payload'], 
 						'address' => $_POST['address'], 
-						'password' => $_POST['newpassword']
+						'password' => $_POST['new_password']
 					)
 				);
 				if ($change_request->response['payload'] !== false) {
@@ -314,8 +342,14 @@ if ($admin_primary_cash_request->sessionGet('cash_actual_user')) {
 // final output
 if ($cash_admin->page_data['data_only']) {
 	// data_only means we're working with AJAX requests, so dump valid JSON to the browser for the script to parse
-	$cash_admin->page_data['fullredraw'] = true;
+	if (!AdminHelper::getPersistentData('cash_effective_user')) {
+		// set to a full redraw if we don't have session data (aka: we just logged out)
+		$cash_admin->page_data['fullredraw'] = true;
+	}
 	$cash_admin->page_data['fullcontent'] = $cash_admin->mustache_groomer->render(file_get_contents(ADMIN_BASE_PATH . '/ui/default/' . $template_name . '.mustache'), $cash_admin->page_data);
+	if (!headers_sent()) {
+		header('Content-Type: application/json');
+	}
 	echo json_encode($cash_admin->page_data);
 } else {
 	// magnum p.i. = sweet {{mustache}} > don draper

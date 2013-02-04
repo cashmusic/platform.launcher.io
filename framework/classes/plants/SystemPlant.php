@@ -8,9 +8,12 @@
  * @author CASH Music
  * @link http://cashmusic.org/
  *
- * Copyright (c) 2012, CASH Music
- * Licensed under the Affero General Public License version 3.
- * See http://www.gnu.org/licenses/agpl-3.0.html
+ * Copyright (c) 2013, CASH Music
+ * Licensed under the GNU Lesser General Public License version 3.
+ * See http://www.gnu.org/licenses/lgpl-3.0.html
+ *
+ *
+ * This file is generously sponsored by Howard Lull Music www.turningeyes.com Keep the music coming!
  *
  **/
 class SystemPlant extends PlantBase {
@@ -173,19 +176,57 @@ class SystemPlant extends PlantBase {
 	 *
 	 * @return boolean
 	 */protected function recordLoginAnalytics($user_id,$element_id=null,$login_method='internal') {
-		$ip_and_proxy = CASHSystem::getRemoteIP();
-		$result = $this->db->setData(
-			'people_analytics',
-			array(
-				'user_id' => $user_id,
-				'element_id' => $element_id,
-				'access_time' => time(),
-				'client_ip' => $ip_and_proxy['ip'],
-				'client_proxy' => $ip_and_proxy['proxy'],
-				'login_method' => $login_method
-			)
-		);
-		return $result;
+		// check settings first as they're already loaded in the environment
+		$record_type = CASHSystem::getSystemSettings('analytics');
+		if ($record_type == 'off') {
+			return true;
+		}
+
+		// first the big record if needed
+		if ($record_type == 'full' || !$record_type) {
+			$ip_and_proxy = CASHSystem::getRemoteIP();
+			$result = $this->db->setData(
+				'people_analytics',
+				array(
+					'user_id' => $user_id,
+					'element_id' => $element_id,
+					'access_time' => time(),
+					'client_ip' => $ip_and_proxy['ip'],
+					'client_proxy' => $ip_and_proxy['proxy'],
+					'login_method' => $login_method
+				)
+			);
+		}
+		// basic logging happens for full or basic
+		if ($record_type == 'full' || $record_type == 'basic') {
+			$condition = array(
+				"user_id" => array(
+					"condition" => "=",
+					"value" => $user_id
+				)
+			);
+			$current_result = $this->db->getData(
+				'people_analytics_basic',
+				'*',
+				$condition
+			);
+			if (is_array($current_result)) {
+				$new_total = $current_result[0]['total'] +1;
+			} else {
+				$new_total = 1;
+				$condition = false;
+			}
+			$result = $this->db->setData(
+				'people_analytics_basic',
+				array(
+					'user_id' => $user_id,
+					'total' => $new_total
+				),
+				$condition
+			);
+		}
+		
+		return $result;		
 	}
 
 	/**
@@ -194,7 +235,7 @@ class SystemPlant extends PlantBase {
 	 * @param {string} $address -  the email address in question
 	 * @param {string} $password - the password
 	 * @return array|false
-	 */protected function addLogin($address,$password,$is_admin=0,$username='',$display_name='Anonymous',$first_name='',$last_name='',$organization='',$address_country='',$force52compatibility=false) {
+	 */protected function addLogin($address,$password,$is_admin=0,$username='',$display_name='Anonymous',$first_name='',$last_name='',$organization='',$address_country='',$force52compatibility=false,$data='') {
 		$id_request = new CASHRequest(
 			array(
 				'cash_request_type' => 'people', 
@@ -255,7 +296,8 @@ class SystemPlant extends PlantBase {
 				'last_name' => $last_name,
 				'organization' => $organization,
 				'address_country' => $address_country,
-				'is_admin' => $is_admin
+				'is_admin' => $is_admin,
+				'data' => json_encode($data)
 			)
 		);
 		if ($result && $is_admin) {

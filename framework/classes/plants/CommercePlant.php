@@ -7,9 +7,12 @@
  * @author CASH Music
  * @link http://cashmusic.org/
  *
- * Copyright (c) 2012, CASH Music
- * Licensed under the Affero General Public License version 3.
- * See http://www.gnu.org/licenses/agpl-3.0.html
+ * Copyright (c) 2013, CASH Music
+ * Licensed under the GNU Lesser General Public License version 3.
+ * See http://www.gnu.org/licenses/lgpl-3.0.html
+ *
+ *
+ * This file is generously sponsored by Devin Palmer | www.devinpalmer.com
  *
  **/
 class CommercePlant extends PlantBase {
@@ -637,7 +640,7 @@ class CommercePlant extends PlantBase {
 											'Your download is ready',
 											$order_details['user_id'],
 											$order_details['customer_user_id'],
-											'Your download of "' . $initial_details['L_PAYMENTREQUEST_0_NAME0'] . '" is ready and can be found at: '
+											'Your download of "' . $initial_details['PAYMENTREQUEST_0_DESC'] . '" is ready and can be found at: '
 											. CASHSystem::getCurrentURL() . '?cash_request_type=element&cash_action=redeemcode&code=' . $addcode_request->response['payload']
 											. '&element_id=' . $order_details['element_id'] . '&email=' . urlencode($initial_details['EMAIL']),
 											'Thank you'

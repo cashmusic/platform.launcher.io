@@ -6,13 +6,15 @@
  * @author CASH Music
  * @link http://cashmusic.org/
  *
- * Copyright (c) 2012, CASH Music
- * Licensed under the Affero General Public License version 3.
- * See http://www.gnu.org/licenses/agpl-3.0.html
+ * Copyright (c) 2013, CASH Music
+ * Licensed under the GNU Lesser General Public License version 3.
+ * See http://www.gnu.org/licenses/lgpl-3.0.html
  *
  *
  * This file is generously sponsored by Hypebot and Music Think Tank
  * Read Hypebot.com and MusicThinkTank.com
+ *
+ * Thank you, Bruce!
  *
  **/
 abstract class SeedBase extends CASHData {
