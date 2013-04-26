@@ -26,7 +26,7 @@ if (isset($_POST['change_template_id'])) {
 }
 
 // look for a defined template
-$settings_request = new CASHRequest(
+$settings_response = $cash_admin->requestAndStore(
 	array(
 		'cash_request_type' => 'system', 
 		'cash_action' => 'getsettings',
@@ -34,8 +34,8 @@ $settings_request = new CASHRequest(
 		'user_id' => $cash_admin->effective_user_id
 	)
 );
-if ($settings_request->response['payload']) {
-	$cash_admin->page_data['current_page_template'] = $settings_request->response['payload'];
+if ($settings_response['payload']) {
+	$cash_admin->page_data['current_page_template'] = $settings_response['payload'];
 } else {
 	$cash_admin->page_data['current_page_template'] = false;
 }
@@ -124,8 +124,8 @@ $user_response = $cash_admin->requestAndStore(
 	)
 );
 if (is_array($user_response['payload'])) {
-		$current_username = $user_response['payload']['username'];
-	}
+	$current_username = $user_response['payload']['username'];
+}
 $cash_admin->page_data['user_page_uri'] = str_replace('https','http',rtrim(str_replace('admin', $current_username, CASHSystem::getCurrentURL()),'/'));
 if (defined('COMPUTED_DOMAIN_IN_USER_URL') && defined('PREFERRED_DOMAIN_IN_USER_URL')) {
 	$cash_admin->page_data['user_page_uri'] = str_replace(COMPUTED_DOMAIN_IN_USER_URL, PREFERRED_DOMAIN_IN_USER_URL, $cash_admin->page_data['user_page_uri']);

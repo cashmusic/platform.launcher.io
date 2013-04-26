@@ -59,9 +59,9 @@ class MailchimpSeed extends SeedBase {
 			);
 			$login_url = $auth->getLoginUri();
 
-			$return_markup = '<h3>Connect to MailChimp</h3>'
+			$return_markup = '<h4>Connect to MailChimp</h4>'
 						   . '<p>This will redirect you to a secure login on mailchimp.com and bring you right back.</p>'
-						   . '<a href="' . $login_url . '" class="mockbutton">Connect your MailChimp account</a>';
+						   . '<a href="' . $login_url . '" class="button">Connect your MailChimp account</a>';
 			return $return_markup;
 		} else {
 			return 'Please add default mailchimp app credentials.';
@@ -97,14 +97,14 @@ class MailchimpSeed extends SeedBase {
 				$api->useSecure(true);
 				$lists = $api->lists('', 0, 50);
 
-				$return_markup = '<h3>Connect to MailChimp</h3>'
+				$return_markup = '<h4>Connect to MailChimp</h4>'
 							   . '<p>Now just choose a list and save the connection.</p>'
 							   . '<form accept-charset="UTF-8" method="post" action="">'
 							   . '<input type="hidden" name="dosettingsadd" value="makeitso" />'
 							   . '<input id="connection_name_input" type="hidden" name="settings_name" value="(MailChimp list)" />'
 							   . '<input type="hidden" name="settings_type" value="com.mailchimp" />'
 							   . '<input type="hidden" name="key" value="' . $api_key . '" />'
-							   . '<label for="list">Choose a list for this connection:</label><br />'
+							   . '<label for="list">Choose a list to connect to:</label>'
 							   . '<select id="list_select" name="list">';
 				$selected = ' selected="selected"';
 				$list_name = false;
@@ -115,7 +115,7 @@ class MailchimpSeed extends SeedBase {
 					$return_markup .= '<option value="' . $list['id'] . '"' . $selected . '>' . $list['name'] . '</option>';
 					$selected = false;
 				}
-				$return_markup .= '</select><div class="row_seperator">.</div><br />'
+				$return_markup .= '</select><br /><br />'
 								. '<div><input class="button" type="submit" value="Add The Connection" /></div>'
 								. '</form>'
 								. '<script type="text/javascript">'

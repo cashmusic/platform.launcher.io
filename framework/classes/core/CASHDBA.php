@@ -84,6 +84,8 @@ class CASHDBA {
 			'events' => 'calendar_events',
 			'items' => 'commerce_items',
 			'lock_codes' => 'system_lock_codes',
+			'mailings' => 'people_mailings',
+			'mailings_analytics' => 'people_mailings_analytics',
 			'metadata' => 'system_metadata',
 			'offers' => 'commerce_offers',
 			'orders' => 'commerce_orders',
@@ -490,6 +492,11 @@ class CASHDBA {
 				. "t.connection_id as connection_id, t.connection_type as connection_type, t.service_transaction_id as service_transaction_id, t.data_sent as data_sent, t.data_returned as data_returned, t.gross_price as gross_price, t.service_fee as service_fee, t.status as status, t.successful as successful "
 				. "FROM commerce_orders o JOIN commerce_transactions t ON o.transaction_id = t.id "
 				. "WHERE o.id = :id ";
+				break;
+			case 'CommercePlant_getAnalytics_transactions':
+				$query = "SELECT SUM(gross_price) AS total_gross, COUNT(id) AS total_transactions  "
+				. "FROM commerce_transactions "
+				. "WHERE user_id = :user_id AND successful = 1 AND creation_date > :date_low  AND creation_date < :date_high";
 				break;
 			case 'ElementPlant_getAnalytics_mostactive':
 				$query = "SELECT ea.element_id as 'id', COUNT(ea.id) as 'count', e.name as 'name' "

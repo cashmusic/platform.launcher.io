@@ -110,9 +110,9 @@ class GoogleDriveSeed extends SeedBase {
 					'https://www.googleapis.com/auth/userinfo.email',
 					'https://www.googleapis.com/auth/userinfo.profile'
 				));
-			$return_markup = '<h3>Connect to Google Drive</h3>'
+			$return_markup = '<h4>Connect to Google Drive</h4>'
 						   . '<p>This will redirect you to a secure login at Google and bring you right back.</p>'
-						   . '<a href="' . $login_url . '" class="mockbutton">Connect your Google Drive</a>';
+						   . '<a href="' . $login_url . '" class="button">Connect your Google Drive</a>';
 			return $return_markup;
 		} else {
 			return 'Please add default google drive app credentials.';
@@ -157,10 +157,25 @@ class GoogleDriveSeed extends SeedBase {
 							'refresh_token'  => $credentials_array['refresh_token']
 						)
 					);
-					if ($result) {
-						AdminHelper::formSuccess('Success. Connection added. You\'ll see it below.','/settings/connections/');
+					if (!$result) {
+						$settings_for_user = $new_connection->getAllConnectionsforUser();
+						if (is_array($settings_for_user)) {
+							foreach ($settings_for_user as $key => $connection_data) {
+								if ($connection_data['name'] == $email_address . ' (Google Drive)') {
+									$result = $connection_data['id'];
+									break;
+								}
+							}
+						}
+					}
+					if (isset($data['return_result_directly'])) {
+						return $result;
 					} else {
-						AdminHelper::formFailure('Error. Something just didn\'t work right.','/settings/connections/');
+						if ($result) {
+							AdminHelper::formSuccess('Success. Connection added. You\'ll see it below.','/settings/connections/');
+						} else {
+							AdminHelper::formFailure('Error. Something just didn\'t work right.','/settings/connections/');
+						}
 					}
 				} else {
 					return 'Could not find a refresh token from google';
@@ -282,8 +297,13 @@ class GoogleDriveSeed extends SeedBase {
 
 		$this->drive_service->permissions->insert($filename,$permission);
 
-		$file = $this->drive_service->files->get($filename);
-		return $file['webContentLink'];
+		// the "official" webContentLink requires some form of auth, even for public. dumb
+		//
+		// $file = $this->drive_service->files->get($filename);
+		// return $file['webContentLink'];
+
+		$public_link = 'https://drive.google.com/uc?export=download&id=' . $filename;
+		return $public_link;
 	}
 
 	// required for Asset seeds

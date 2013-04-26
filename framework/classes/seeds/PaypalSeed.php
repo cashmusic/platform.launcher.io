@@ -61,7 +61,7 @@ class PaypalSeed extends SeedBase {
 		$connections = CASHSystem::getSystemSettings('system_connections');
 		
 		if (isset($connections['com.paypal'])) {
-			$return_markup = '<h3>Connect to Paypal</h3>'
+			$return_markup = '<h4>Connect to Paypal</h4>'
 						   . '<p>You\'ll need a verified Business or Premier Paypal account to connect properly. '
 						   . 'Those are free upgrades, so just double-check your address and enter it below. You '
 						   . 'can learn more about what they entail <a href="https://cms.paypal.com/cgi-bin/?cmd=_render-content&content_ID=developer/EC_setup_permissions">here</a>.</p>'
@@ -70,9 +70,9 @@ class PaypalSeed extends SeedBase {
 						   . '<input type="hidden" name="permission_type" value="accelerated" />'
 						   . '<input id="connection_name_input" type="hidden" name="settings_name" value="(Paypal)" />'
 						   . '<input type="hidden" name="settings_type" value="com.paypal" />'
-						   . '<label for="merchant_email">Your Paypal email address:</label><br />'
+						   . '<label for="merchant_email">Your Paypal email address:</label>'
 						   . '<input type="text" name="merchant_email" id="merchant_email" value="" />'
-						   . '<div class="row_seperator">.</div><br />'
+						   . '<br />'
 						   . '<div><input class="button" type="submit" value="Add The Connection" /></div>'
 						   . '</form>'
 						   . '<script type="text/javascript">'

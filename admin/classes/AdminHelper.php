@@ -16,7 +16,8 @@
  */abstract class AdminHelper  {
 
 	public static function doLogin($email_address,$password,$require_admin=true,$browserid_assertion=false) {
-		$login_request = new CASHRequest(
+		global $admin_primary_cash_request;
+		$admin_primary_cash_request->processRequest(
 			array(
 				'cash_request_type' => 'system', 
 				'cash_action' => 'validatelogin',
@@ -26,7 +27,7 @@
 				'browserid_assertion' => $browserid_assertion
 			)
 		);
-		return $login_request->response['payload'];
+		return $admin_primary_cash_request->response['payload'];
 	}
 
 	/**********************************************
@@ -35,13 +36,21 @@
 	 *
 	 *********************************************/
 
-	public static function buildSectionNav() {
-		$pages_array = json_decode(file_get_contents(dirname(__FILE__).'/../components/menu/menu_en.json'),true);
+	public static function getPageMenuDetails() {
+		$pages_array = json_decode(file_get_contents(dirname(__FILE__).'/../components/interface/en/menu.json'),true);
 		// remove non-multi links
 		$platform_type = CASHSystem::getSystemSettings('instancetype');
 		if ($platform_type == 'multi') {
 			unset($pages_array['settings/update'],$pages_array['people/contacts']);
 		}
+		// make an array for return
+		$return_array = array(
+			'page_title' => 'CASH Music',
+			'section_menu' => '',
+			'link_text' => null
+		);
+
+		// generate submenu markup
 		$endpoint = str_replace('_','/',BASE_PAGENAME);
 		$endpoint_parts = explode('/',$endpoint);
 		$section_pages = array();
@@ -58,43 +67,55 @@
 				$menulevel = substr_count($page_endpoint, '/');
 				if ($menulevel == 1 && !isset($page['hide'])) { // only show top-level menu items
 					if (str_replace('/','_',$page_endpoint) == BASE_PAGENAME) {
-						$menustr .= "<li><a href=\"" . ADMIN_WWW_BASE_PATH . "/$page_endpoint/\" style=\"color:#babac4;\"><span class=\"icon {$page['menu_icon']}\"></span> {$page['page_name']}</a></li>";
+						$menustr .= "<li><a href=\"" . ADMIN_WWW_BASE_PATH . "/$page_endpoint/\" style=\"color:#c4c0be;\"><span class=\"icon {$page['menu_icon']}\"></span> {$page['page_name']}</a></li>";
 					} else {
 						$menustr .= "<li><a href=\"" . ADMIN_WWW_BASE_PATH . "/$page_endpoint/\"><span class=\"icon {$page['menu_icon']}\"></span> {$page['page_name']}</a></li>";
 					}
 				}
 			}
 			$menustr .= '</ul>';
-			return $menustr;
-		} else {
-			return false;
-		}
-	}
+			$return_array['section_menu'] = $menustr;
+		} 
 
-	public static function getPageTitle() {
-		$pages_array = json_decode(file_get_contents(dirname(__FILE__).'/../components/menu/menu_en.json'),true);
-		$endpoint = str_replace('_','/',BASE_PAGENAME);
+		// find the right page title
 		if (isset($pages_array[$endpoint])) {
-			$endpoint_parts = explode('/',$endpoint);
 			$current_title = '';
 			if (count($endpoint_parts) > 1) {
 				$current_title .= $pages_array[$endpoint_parts[0]]['page_name'] . ': ';
 			}
 			$current_title .= $pages_array[$endpoint]['page_name'];
-			return $current_title;
+			$return_array['page_title'] = $current_title;
 		}
-		return 'CASH Music';
+
+		// set link text for the main template
+		$return_array['link_text'] = array(
+			'link_main_page' => $pages_array['mainpage']['page_name'],
+			'link_menu_assets' => $pages_array['assets']['page_name'],
+			'link_menu_people' => $pages_array['people']['page_name'],
+			'link_menu_commerce' => $pages_array['commerce']['page_name'],
+			'link_menu_calendar' => $pages_array['calendar']['page_name'],
+			'link_menu_elements' => $pages_array['elements']['page_name'],
+			'link_menu_help' => $pages_array['help']['page_name'],
+			'link_menu_help_gettingstarted' => $pages_array['help/gettingstarted']['page_name'],
+			'link_youraccount' => $pages_array['account']['page_name'],
+			'link_settings' => $pages_array['settings']['page_name']
+		);
+
+		return $return_array;
 	}
 
-	public static function getPageTipsString() {
-		$tips_array = json_decode(file_get_contents(dirname(__FILE__).'/../components/text/en/pagetips.json'),true);
-		$endpoint = str_replace('_','/',BASE_PAGENAME);
-		if (isset($tips_array[$endpoint])) {
-			if ($tips_array[$endpoint]) {
-				return $tips_array[$endpoint];
-			}
+	public static function getUiText() {
+		$text_array = json_decode(file_get_contents(dirname(__FILE__).'/../components/interface/en/interaction.json'),true);
+		return $text_array;
+	}
+
+	public static function getPageComponents() {
+		if (file_exists(dirname(__FILE__).'/../components/text/en/pages/' . BASE_PAGENAME . '.json')) {
+			$components_array = json_decode(file_get_contents(dirname(__FILE__).'/../components/text/en/pages/' . BASE_PAGENAME . '.json'),true);
+		} else {
+			$components_array = json_decode(file_get_contents(dirname(__FILE__).'/../components/text/en/pages/default.json'),true);
 		}
-		return $tips_array['default'];
+		return $components_array;
 	}
 
 	/**********************************************
@@ -158,11 +179,9 @@
 			while (false !== ($dir = readdir($elements_dir))) {
 				if (substr($dir,0,1) != "." && is_dir($elements_dirname . '/' . $dir)) {
 					$tmpKey = strtolower($dir);
-					if (@file_exists($elements_dirname . '/' . $dir . '/metadata.json')) {
-						$tmpValue = json_decode(@file_get_contents($elements_dirname . '/' . $dir . '/metadata.json'),true);
-						if ($tmpValue) {
-							$tmpArray["$tmpKey"] = $tmpValue;
-						}
+					$tmpValue = CASHSystem::getElementMetaData($dir);
+					if ($tmpValue) {
+						$tmpArray["$tmpKey"] = $tmpValue;
 					}
 				}
 			}
@@ -188,10 +207,11 @@
 	}
 
 	public static function handleElementFormPOST($post_data,&$cash_admin,$options_array) {
+		global $admin_primary_cash_request;
 		if (isset($post_data['doelementadd'])) {
 			// Adding a new element:
 			$cash_admin->setCurrentElementState('add');
-			$element_add_request = new CASHRequest(
+			$admin_primary_cash_request->processRequest(
 				array(
 					'cash_request_type' => 'element', 
 					'cash_action' => 'addelement',
@@ -201,12 +221,12 @@
 					'user_id' => AdminHelper::getPersistentData('cash_effective_user')
 				)
 			);
-			if ($element_add_request->response['status_uid'] == 'element_addelement_200') {
+			if ($admin_primary_cash_request->response['status_uid'] == 'element_addelement_200') {
 				// handle differently for AJAX and non-AJAX
 				if ($cash_admin->page_data['data_only']) {
-					AdminHelper::formSuccess('Success. New element added.','/elements/edit/' . $element_add_request->response['payload']);
+					AdminHelper::formSuccess('Success. New element added.','/elements/edit/' . $admin_primary_cash_request->response['payload']);
 				} else {
-					$cash_admin->setCurrentElement($element_add_request->response['payload']);
+					$cash_admin->setCurrentElement($admin_primary_cash_request->response['payload']);
 				}
 			} else {
 				// handle differently for AJAX and non-AJAX
@@ -219,7 +239,7 @@
 		} elseif (isset($post_data['doelementedit'])) {
 			// Editing an existing element:
 			$cash_admin->setCurrentElementState('edit');
-			$element_edit_request = new CASHRequest(
+			$admin_primary_cash_request->processRequest(
 				array(
 					'cash_request_type' => 'element', 
 					'cash_action' => 'editelement',
@@ -228,7 +248,7 @@
 					'options_data' => $options_array
 				)
 			);
-			if ($element_edit_request->response['status_uid'] == 'element_editelement_200') {
+			if ($admin_primary_cash_request->response['status_uid'] == 'element_editelement_200') {
 				// handle differently for AJAX and non-AJAX
 				if ($cash_admin->page_data['data_only']) {
 					// AJAX
@@ -361,9 +381,8 @@
 	 * Performs a sessionGet() CASH Request for the specified variable
 	 *
 	 */public static function getPersistentData($var) {
-		$helper_cash_request = new CASHRequest(null);
-		$result = $helper_cash_request->sessionGet($var);
-		unset($helper_cash_request);
+		global $admin_primary_cash_request;
+		$result = $admin_primary_cash_request->sessionGet($var);
 		return $result;
 	}
 
@@ -816,7 +835,8 @@
 				$display_information = 'name';
 				break;
 		}
-		$echoformoptions_cash_request = new CASHRequest(
+		global $admin_primary_cash_request;
+		$admin_primary_cash_request->processRequest(
 			array(
 				'cash_request_type' => $plant_name, 
 				'cash_action' => $action_name,
@@ -825,8 +845,8 @@
 			)
 		);
 		$all_options = '';
-		if (is_array($echoformoptions_cash_request->response['payload']) && ($echoformoptions_cash_request->response['status_code'] == 200)) {
-			foreach ($echoformoptions_cash_request->response['payload'] as $item) {
+		if (is_array($admin_primary_cash_request->response['payload']) && ($admin_primary_cash_request->response['status_code'] == 200)) {
+			foreach ($admin_primary_cash_request->response['payload'] as $item) {
 				$doloop = true;
 				if ($range) {
 					if (!in_array($item['id'],$range)) {
@@ -847,7 +867,6 @@
 		} else {
 			echo $all_options;
 		}
-		unset($echoformoptions_cash_request);
 	}
 	
 } // END class 

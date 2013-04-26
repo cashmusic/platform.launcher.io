@@ -17,7 +17,7 @@
 	 * Handle annoying environment issues like magic quotes, constants and 
 	 * auto-loaders before firing up the CASH platform and whatnot
 	 *
-	 */public static function startUp() {
+	 */public static function startUp($return_request=false) {
 		// only want to do this once, so we check for 'initial_page_request_time'
 		if (!isset($GLOBALS['cashmusic_script_store']['initial_page_request_time'])) {
 			// remove magic quotes, never call them "magic" in front of your friends
@@ -58,7 +58,11 @@
 				);
 			}
 			$cash_page_request->sessionSet('initial_page_request_time',time(),'script');
-			unset($cash_page_request);
+			if ($return_request) {
+				return $cash_page_request;
+			} else {
+				unset($cash_page_request);
+			}
 		}
 	}
 
@@ -719,6 +723,29 @@
 		if (file_exists($definition_location)) {
 			$settings_array = json_decode(file_get_contents($definition_location),true);
 			return $settings_array;
+		} else {
+			return false;
+		}
+	}
+
+	public static function getElementMetaData($element_type,$push_to_admin=false) {
+		if (file_exists(CASH_PLATFORM_ROOT . '/elements/' . $element_type . '/metadata/en.json')) {
+			$metadata = json_decode(file_get_contents(CASH_PLATFORM_ROOT . '/elements/' . $element_type . '/metadata/en.json'),true);
+			if ($push_to_admin) {
+				global $cash_admin;
+				if (isset($cash_admin)) {
+					foreach ($metadata as $key => $val) {
+						if ($key == 'name') {
+							// change this to "classname" so we don't interfere with the element_name
+							// of stored elements
+							$cash_admin->page_data['element_classname'] = $val;
+						} else {
+							$cash_admin->page_data['element_' . $key] = $val;
+						}
+					}
+				} 
+			}
+			return $metadata;
 		} else {
 			return false;
 		}
